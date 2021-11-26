@@ -8,19 +8,12 @@ import {
 } from '@jupyter-widgets/base';
 
 import { MODULE_NAME, MODULE_VERSION } from './version';
-// import { dia, g, elementTools, V } from '../node_modules/jointjs/dist/joint';
 import * as joint from '../node_modules/jointjs/dist/joint';
 import '../css/widget.css';
 
-// TODO: Add these scripts:
-// <script src="node_modules/jquery/dist/jquery.js"></script>
-// <script src="node_modules/lodash/lodash.js"></script>
-// <script src="node_modules/backbone/backbone.js"></script>
-// <script src="node_modules/jointjs/dist/joint.js"></script>
-
 export class PetriModel extends DOMWidgetModel {
-  defaults() {
 
+  defaults() {
     return {
       ...super.defaults(),
       _model_name: PetriModel.model_name,
@@ -29,8 +22,7 @@ export class PetriModel extends DOMWidgetModel {
       _view_name: PetriModel.view_name,
       _view_module: PetriModel.view_module,
       _view_module_version: PetriModel.view_module_version,
-      value: 'Hello World',
-      graph: 'Example Graph'
+      graph: [],
     };
   }
 
@@ -42,49 +34,11 @@ export class PetriModel extends DOMWidgetModel {
   static model_name = 'PetriModel';
   static model_module = MODULE_NAME;
   static model_module_version = MODULE_VERSION;
-  static view_name = 'PetriView'; // Set to null if no view
-  static view_module = MODULE_NAME; // Set to null if no view
+  static view_name = 'PetriView';                  // Set to null if no view
+  static view_module = MODULE_NAME;                // Set to null if no view
   static view_module_version = MODULE_VERSION;
 }
 
-// export class PetriView extends DOMWidgetView {
-//   render() {
-//     this._emailInput = document.createElement('input');
-//     this._emailInput.type = 'email';
-//     this._emailInput.value = this.model.get('value');
-//     this._emailInput.disabled = this.model.get('disabled');
-
-//     this.el.appendChild(this._emailInput);
-
-//     // Python -> JavaScript update
-//     this.model.on('change:value', this._onValueChanged, this);
-//     this.model.on('change:disabled', this._onDisabledChanged, this);
-
-//     // JavaScript -> Python update
-//     this._emailInput.onchange = this._onInputChanged.bind(this);
-//   }
-
-//   private _onValueChanged() {
-//     this._emailInput.value = this.model.get('value');
-//   }
-
-//   private _onDisabledChanged() {
-//     this._emailInput.disabled = this.model.get('disabled');
-//   }
-
-//   private _onInputChanged() {
-//     this.model.set('value', this._emailInput.value);
-//     this.model.save_changes();
-//   }
-
-//   private _emailInput: HTMLInputElement;
-// }
-
-// window.onload = function() {
-//   var paper = new dia.Paper({
-
-//   } );
-// }
 
 export class PetriView extends DOMWidgetView {
   static graph: joint.dia.Graph;
@@ -97,12 +51,6 @@ export class PetriView extends DOMWidgetView {
   height: any;
 
   render() {
-    // this.model.on("change:graph", this.onGraphChange(), this);
-
-    // private onGraphChange() {
-    //   this.model.graph = 
-    // }
-
     var dropdown = document.createElement("div");
     dropdown.className = "dropdown";
     
@@ -174,7 +122,7 @@ export class PetriView extends DOMWidgetView {
     var saveGraph = document.createElement("button");
     saveGraph.className = "button button4";
     saveGraph.addEventListener("click", (e:Event) => this.saveGraph());
-    saveGraph.innerHTML = '<i class="fa fa-save"></i>' + " Get cells";
+    saveGraph.innerHTML = '<i class="fa fa-save"></i>' + " Save Graph";
 
     var saveIMG = document.createElement("button");
     saveIMG.className = "button button4";
@@ -182,23 +130,23 @@ export class PetriView extends DOMWidgetView {
     saveIMG.innerHTML = '<i class="fa fa-download"></i>' + "Download SVG";
 
     var popup = document.createElement("div");
-    popup.id = "input";
+    popup.id = "popup";
     popup.className = "popup";
+    // popup.style.zIndex = "99 !important";
     popup.style.display = "none";
 
     var popupContent = document.createElement("div");
     popupContent.className = "popup-content";
 
-    // add autofocus property
     var input = document.createElement("input");
     input.placeholder = "Enter label...";
-    input.name = "newLabel";
-    input.oninput = this.enableButton
+    input.id = "input";
+    input.oninput = this.enableButton;
 
     var changeLabel = document.createElement("button");
     changeLabel.id = "changelabel";
     changeLabel.className = "button button1";
-    changeLabel.addEventListener("click", (e:Event) => this.changeLabel());
+    changeLabel.addEventListener("click", (e:Event) => PetriView.changeLabel());
     changeLabel.disabled = true;
     changeLabel.textContent = "Change label";
 
@@ -210,8 +158,9 @@ export class PetriView extends DOMWidgetView {
     dropdownContent.appendChild(secondExample);
     dropdown.appendChild(examplesButton);
     dropdown.appendChild(dropdownContent);
-    
-    this.el.appendChild(popup);
+
+    // document.body.appendChild(popup);
+    // this.el.appendChild(popup);
     this.el.appendChild(dropdown);
     this.el.appendChild(addToken);
     this.el.appendChild(removeToken);
@@ -226,15 +175,32 @@ export class PetriView extends DOMWidgetView {
     this.el.appendChild(saveGraph);
     this.el.appendChild(saveIMG);
 
-    this.initWidget()
+    this.initWidget();
     PetriView.paper.el.id = "paper";
     this.el.appendChild(PetriView.paper.el);
+    this.el.lastChild?.appendChild(popup);     // make sure popup is a child of paper
 
+    this.updateGraph();
+
+    // if clicked outside of ChangeLabel-Form, do not display it anymore
+    window.onclick = function(event: MouseEvent) {
+      if ((event.target! as Element).className === "popup" && PetriView.selectedCell.attributes.type != "pn.Transition") {
+        (event.target! as HTMLDivElement).style.display = "none";
+      }
+    }
+
+    // Click changeLabel-button on keyboardinput "enter"
+    document.addEventListener("keydown", function(e) {
+        if (e.key == "Enter" &&  !((document.getElementById("changelabel")! as HTMLButtonElement).disabled)) {
+            PetriView.changeLabel()
+        }
+    })
+
+    // Paper on-click, -doubleclick, -alt-drag and on-hover functionalities
     PetriView.paper.on({
       // while alt-key is pressed cell is locked and you can connect it by dragging with mouseclick
       // otherwise the cell stroke is simply colored red
       'cell:pointerdown': function (this: joint.dia.Paper, cellView: any, evt: any) {    
-          console.log(cellView.model)
           if (evt.altKey) {
               jQuery('.joint-element').css("cursor", "crosshair")
               evt.data = cellView.model.position();
@@ -280,6 +246,7 @@ export class PetriView extends DOMWidgetView {
                   // Move the cell to the position before dragging and create a connection afterwards.
                   elementAbove.position(evt.data.x, evt.data.y);
                   PetriView.graph.addCell(PetriView.link(elementAbove, elementBelow));
+                  // this.updateGraph();
               }
           }
           else {
@@ -333,9 +300,60 @@ export class PetriView extends DOMWidgetView {
 
       // Allow changing the label upon doubleclicking a place or transition
       'cell:pointerdblclick': function () {
-        document.getElementById("input")!.style.display = "block";
+        // Jupyter.keyboard_manager.disable() would help to not run shortcuts if input is not focused
+        PetriView.showPopup();
       }
     });
+
+    // EXAMPLE HOW TO UPDATE TYPESCRIPT FROM PYTHON:
+    // this.model.on("change:graph", this.updateGraph, this);
+    // this.model.on_some_change(["graph"], this.updateGraph, this);
+
+    // UPDATING PYTHON BASED ON TYPESCRIPT
+    PetriView.graph.on("change", this.updateGraph.bind(this), this);
+  }
+
+  // export class PetriView extends DOMWidgetView {
+  //   render() {
+  //     this._emailInput = document.createElement('input');
+  //     this._emailInput.type = 'email';
+  //     this._emailInput.value = this.model.get('value');
+  //     this._emailInput.disabled = this.model.get('disabled');
+
+  //     this.el.appendChild(this._emailInput);
+
+  //     // Python -> JavaScript update
+  //     this.model.on('change:value', this._onValueChanged, this);
+  //     this.model.on('change:disabled', this._onDisabledChanged, this);
+
+  //     // JavaScript -> Python update
+  //     this._emailInput.onchange = this._onInputChanged.bind(this);
+  //   }
+
+  //   private _onValueChanged() {
+  //     this._emailInput.value = this.model.get('value');
+  //   }
+
+  //   private _onDisabledChanged() {
+  //     this._emailInput.disabled = this.model.get('disabled');
+  //   }
+
+  //   private _onInputChanged() {
+  //     this.model.set('value', this._emailInput.value);
+  //     this.model.save_changes();
+  //   }
+
+  //   private _emailInput: HTMLInputElement;
+  // }
+
+  // TODO: how to get this.model if static or make unstatic and change every PetriView.updateGraph to this.updateGraph!!
+  private updateGraph() {
+    console.log("Graph vor update: ", this.model.get("graph"))
+    // const updatedGraph = PetriView.graph.getCells();
+    this.model.set("graph", PetriView.graph.getCells());
+    this.model.save_changes();
+    console.log("Graph nach update: ", this.model.get("graph"));
+    // PetriModel.graph = PetriView.graph.getCells();
   }
 
   private initWidget() {
@@ -471,7 +489,8 @@ export class PetriView extends DOMWidgetView {
     ]);
 
     PetriView.backupTokens = this.getTokenlist(PetriView.graph.getCells())
-    return PetriView.graph
+    this.updateGraph();
+    // return PetriView.graph
   }
 
   private secondExample() {
@@ -570,7 +589,8 @@ export class PetriView extends DOMWidgetView {
     ]);
 
     PetriView.backupTokens = this.getTokenlist(PetriView.graph.getCells())
-    return PetriView.graph
+    this.updateGraph();
+    // return PetriView.graph
   }
 
   private static link(a: any, b: any) {
@@ -594,6 +614,7 @@ export class PetriView extends DOMWidgetView {
         console.log("You cannot add tokens to transitions! Please select a place instead.");
       } else {
         PetriView.selectedCell.set('tokens', PetriView.selectedCell.get('tokens') + 1);
+        this.updateGraph();
         PetriView.backupTokens = this.getTokenlist(PetriView.graph.getCells())
       }
     } catch(e) {
@@ -610,6 +631,7 @@ export class PetriView extends DOMWidgetView {
       } else {
           if (PetriView.selectedCell.get('tokens') > 0) {
             PetriView.selectedCell.set('tokens', PetriView.selectedCell.get('tokens') - 1);
+            this.updateGraph();
             PetriView.backupTokens = this.getTokenlist(PetriView.graph.getCells())
           }
       }
@@ -617,6 +639,12 @@ export class PetriView extends DOMWidgetView {
         return "Nothing selected! Please select a place before removing a token."
         // console.log("Nothing selected! Please select a place before removing a token.")
     }
+  }
+
+  private static showPopup() {
+    document.getElementById("popup")!.style.display = "flex";
+    (document.getElementById("input")! as HTMLFormElement).autofocus = true;
+    // document.getElementById("input")!.focus();
   }
 
   private addPlace() {
@@ -639,6 +667,7 @@ export class PetriView extends DOMWidgetView {
       tokens: 0,
       position: { x: 20, y: 20 }
     }));
+    this.updateGraph();
     PetriView.backupTokens = this.getTokenlist(PetriView.graph.getCells())
   }
 
@@ -653,12 +682,14 @@ export class PetriView extends DOMWidgetView {
     });
     
     PetriView.graph.addCell(PetriView.selectedCell);
-    document.getElementById("input")!.style.display = "block";
+    PetriView.showPopup();
+    this.updateGraph();
   }
 
   private removeCell() {
     try {
       PetriView.graph.removeCells(PetriView.selectedCell);
+      this.updateGraph();
     } catch(e) {
       return "Nothing selected! Please select a place or transition before removing."
       // console.log("Nothing selected! Please select a place or transition before removing.")
@@ -667,6 +698,7 @@ export class PetriView extends DOMWidgetView {
 
   private clearAll() {
     PetriView.graph.clear();
+    this.updateGraph();
   }
 
   private simulate() {
@@ -747,7 +779,7 @@ export class PetriView extends DOMWidgetView {
     });
 
     this.simulationId = setInterval(function() {
-        transitions.forEach(function(this: PetriView, t) {
+        transitions.forEach(function(this: any, t) {
             if (Math.random() < 0.7) {
               fireTransition(t, 1);
             }
@@ -784,6 +816,7 @@ export class PetriView extends DOMWidgetView {
             i+=1
         }
     });
+    this.updateGraph();
   }
 
   private saveGraph() {
@@ -816,25 +849,15 @@ export class PetriView extends DOMWidgetView {
     }
   }
 
-  private changeLabel() {
-    document.getElementById("input")!.style.display = "none";
+  private static changeLabel() {
+    document.getElementById("popup")!.style.display = "none";
     var newLabel = document.querySelector("input")!.value;
 
     if (newLabel != "") {
       PetriView.selectedCell.attr('.label/text', newLabel);
+      // PetriView.updateGraph();
       document.querySelector("input")!.value = "";
     }
   }
 
-  // window.onclick = function(event) {
-  //   if(event.target.className === "popup" && selectedCell.attributes.type != "pn.Transition") {
-  //     event.target.style.display = "none";
-  //   }
-  // }
-
-  // document.addEventListener("keydown", function(e) {
-  //     if (e.key == "Enter" &&  !(document.getElementById("changelabel").disabled)) {
-  //         changeLabel()
-  //     }
-  // })
 }
