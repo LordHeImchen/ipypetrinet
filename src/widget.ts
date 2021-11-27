@@ -11,6 +11,12 @@ import { MODULE_NAME, MODULE_VERSION } from './version';
 import * as joint from '../node_modules/jointjs/dist/joint';
 import '../css/widget.css';
 
+// HERE IS THE IMPORT WHICH DOES NOT WORK
+// import * as fs from "fs";
+// var promises = require("fs").promises;
+
+window.joint = joint    // important for loading a saved graph (namespace problem)
+
 export class PetriModel extends DOMWidgetModel {
 
   defaults() {
@@ -39,7 +45,6 @@ export class PetriModel extends DOMWidgetModel {
   static view_module_version = MODULE_VERSION;
 }
 
-
 export class PetriView extends DOMWidgetView {
   static graph: joint.dia.Graph;
   static selectedCell: any;
@@ -51,14 +56,16 @@ export class PetriView extends DOMWidgetView {
   height: any;
 
   render() {
+    // DROPDOWN GRAPH-BUTTON
     var dropdown = document.createElement("div");
     dropdown.className = "dropdown";
     
-    var examplesButton = document.createElement("button");
-    examplesButton.className = "button button1";
-    examplesButton.innerHTML = '<i class="fa fa-list"></i>' + " Examples";
+    var graphsButton = document.createElement("button");
+    graphsButton.className = "button button1";
+    graphsButton.innerHTML = '<i class="fa fa-list"></i>' + " Graphs";
 
     var dropdownContent = document.createElement("div");
+    dropdownContent.id = "dropdown-content";
     dropdownContent.className = "dropdown-content";
 
     var firstExample = document.createElement("a");
@@ -68,6 +75,12 @@ export class PetriView extends DOMWidgetView {
     secondExample.textContent = "Example 2";
     secondExample.addEventListener("click", (e:Event) => this.secondExample());
 
+    dropdownContent.appendChild(firstExample);
+    dropdownContent.appendChild(secondExample);
+    dropdown.appendChild(graphsButton);
+    dropdown.appendChild(dropdownContent);
+
+    // BUTTONS
     var addToken = document.createElement("button");
     addToken.className = "button button1";
     addToken.addEventListener("click", (e:Event) => this.addToken());
@@ -121,7 +134,7 @@ export class PetriView extends DOMWidgetView {
 
     var saveGraph = document.createElement("button");
     saveGraph.className = "button button4";
-    saveGraph.addEventListener("click", (e:Event) => this.saveGraph());
+    saveGraph.addEventListener("click", (e:Event) => PetriView.showSavePopup());
     saveGraph.innerHTML = '<i class="fa fa-save"></i>' + " Save Graph";
 
     var saveIMG = document.createElement("button");
@@ -129,10 +142,10 @@ export class PetriView extends DOMWidgetView {
     saveIMG.addEventListener("click", (e:Event) => this.saveIMG());
     saveIMG.innerHTML = '<i class="fa fa-download"></i>' + "Download SVG";
 
+    // LABEL-POPUP
     var popup = document.createElement("div");
     popup.id = "popup";
     popup.className = "popup";
-    // popup.style.zIndex = "99 !important";
     popup.style.display = "none";
 
     var popupContent = document.createElement("div");
@@ -141,7 +154,7 @@ export class PetriView extends DOMWidgetView {
     var input = document.createElement("input");
     input.placeholder = "Enter label...";
     input.id = "input";
-    input.oninput = this.enableButton;
+    input.oninput = this.enableLabelButton;
 
     var changeLabel = document.createElement("button");
     changeLabel.id = "changelabel";
@@ -154,13 +167,32 @@ export class PetriView extends DOMWidgetView {
     popupContent.appendChild(changeLabel);
     popup.appendChild(popupContent);
 
-    dropdownContent.appendChild(firstExample);
-    dropdownContent.appendChild(secondExample);
-    dropdown.appendChild(examplesButton);
-    dropdown.appendChild(dropdownContent);
+    // SAVE-POPUP
+    var savePopup = document.createElement("div");
+    savePopup.id = "savePopup";
+    savePopup.className = "popup";
+    savePopup.style.display = "none";
 
-    // document.body.appendChild(popup);
-    // this.el.appendChild(popup);
+    var savePopupContent = document.createElement("div");
+    savePopupContent.className = "popup-content";
+
+    var saveInput = document.createElement("input");
+    saveInput.placeholder = "Enter graphname...";
+    saveInput.id = "graphNameInput";
+    saveInput.oninput = this.enableSaveButton;
+
+    var saveGraphAs = document.createElement("button");
+    saveGraphAs.id = "saveGraphAs";
+    saveGraphAs.className = "button button1";
+    saveGraphAs.addEventListener("click", (e:Event) => this.saveGraph());
+    saveGraphAs.disabled = true;
+    saveGraphAs.textContent = "Save Graph!";
+
+    savePopupContent.appendChild(saveInput);
+    savePopupContent.appendChild(saveGraphAs);
+    savePopup.appendChild(savePopupContent);
+
+    // ADD EVERYTHING TO NOTEBOOK HTML CODE
     this.el.appendChild(dropdown);
     this.el.appendChild(addToken);
     this.el.appendChild(removeToken);
@@ -179,8 +211,7 @@ export class PetriView extends DOMWidgetView {
     PetriView.paper.el.id = "paper";
     this.el.appendChild(PetriView.paper.el);
     this.el.lastChild?.appendChild(popup);     // make sure popup is a child of paper
-
-    this.updateGraph();
+    this.el.lastChild?.appendChild(savePopup); // make sure savePopup is a child of paper as well
 
     // if clicked outside of ChangeLabel-Form, do not display it anymore
     window.onclick = function(event: MouseEvent) {
@@ -246,7 +277,6 @@ export class PetriView extends DOMWidgetView {
                   // Move the cell to the position before dragging and create a connection afterwards.
                   elementAbove.position(evt.data.x, evt.data.y);
                   PetriView.graph.addCell(PetriView.link(elementAbove, elementBelow));
-                  // this.updateGraph();
               }
           }
           else {
@@ -313,47 +343,9 @@ export class PetriView extends DOMWidgetView {
     PetriView.graph.on("change", this.updateGraph.bind(this), this);
   }
 
-  // export class PetriView extends DOMWidgetView {
-  //   render() {
-  //     this._emailInput = document.createElement('input');
-  //     this._emailInput.type = 'email';
-  //     this._emailInput.value = this.model.get('value');
-  //     this._emailInput.disabled = this.model.get('disabled');
-
-  //     this.el.appendChild(this._emailInput);
-
-  //     // Python -> JavaScript update
-  //     this.model.on('change:value', this._onValueChanged, this);
-  //     this.model.on('change:disabled', this._onDisabledChanged, this);
-
-  //     // JavaScript -> Python update
-  //     this._emailInput.onchange = this._onInputChanged.bind(this);
-  //   }
-
-  //   private _onValueChanged() {
-  //     this._emailInput.value = this.model.get('value');
-  //   }
-
-  //   private _onDisabledChanged() {
-  //     this._emailInput.disabled = this.model.get('disabled');
-  //   }
-
-  //   private _onInputChanged() {
-  //     this.model.set('value', this._emailInput.value);
-  //     this.model.save_changes();
-  //   }
-
-  //   private _emailInput: HTMLInputElement;
-  // }
-
-  // TODO: how to get this.model if static or make unstatic and change every PetriView.updateGraph to this.updateGraph!!
   private updateGraph() {
-    console.log("Graph vor update: ", this.model.get("graph"))
-    // const updatedGraph = PetriView.graph.getCells();
     this.model.set("graph", PetriView.graph.getCells());
     this.model.save_changes();
-    console.log("Graph nach update: ", this.model.get("graph"));
-    // PetriModel.graph = PetriView.graph.getCells();
   }
 
   private initWidget() {
@@ -489,8 +481,6 @@ export class PetriView extends DOMWidgetView {
     ]);
 
     PetriView.backupTokens = this.getTokenlist(PetriView.graph.getCells())
-    this.updateGraph();
-    // return PetriView.graph
   }
 
   private secondExample() {
@@ -589,8 +579,6 @@ export class PetriView extends DOMWidgetView {
     ]);
 
     PetriView.backupTokens = this.getTokenlist(PetriView.graph.getCells())
-    this.updateGraph();
-    // return PetriView.graph
   }
 
   private static link(a: any, b: any) {
@@ -614,7 +602,6 @@ export class PetriView extends DOMWidgetView {
         console.log("You cannot add tokens to transitions! Please select a place instead.");
       } else {
         PetriView.selectedCell.set('tokens', PetriView.selectedCell.get('tokens') + 1);
-        this.updateGraph();
         PetriView.backupTokens = this.getTokenlist(PetriView.graph.getCells())
       }
     } catch(e) {
@@ -631,7 +618,6 @@ export class PetriView extends DOMWidgetView {
       } else {
           if (PetriView.selectedCell.get('tokens') > 0) {
             PetriView.selectedCell.set('tokens', PetriView.selectedCell.get('tokens') - 1);
-            this.updateGraph();
             PetriView.backupTokens = this.getTokenlist(PetriView.graph.getCells())
           }
       }
@@ -644,6 +630,12 @@ export class PetriView extends DOMWidgetView {
   private static showPopup() {
     document.getElementById("popup")!.style.display = "flex";
     (document.getElementById("input")! as HTMLFormElement).autofocus = true;
+    // document.getElementById("input")!.focus();
+  }
+
+  private static showSavePopup() {
+    document.getElementById("savePopup")!.style.display = "flex";
+    (document.getElementById("graphNameInput")! as HTMLFormElement).autofocus = true;
     // document.getElementById("input")!.focus();
   }
 
@@ -667,7 +659,6 @@ export class PetriView extends DOMWidgetView {
       tokens: 0,
       position: { x: 20, y: 20 }
     }));
-    this.updateGraph();
     PetriView.backupTokens = this.getTokenlist(PetriView.graph.getCells())
   }
 
@@ -683,13 +674,11 @@ export class PetriView extends DOMWidgetView {
     
     PetriView.graph.addCell(PetriView.selectedCell);
     PetriView.showPopup();
-    this.updateGraph();
   }
 
   private removeCell() {
     try {
       PetriView.graph.removeCells(PetriView.selectedCell);
-      this.updateGraph();
     } catch(e) {
       return "Nothing selected! Please select a place or transition before removing."
       // console.log("Nothing selected! Please select a place or transition before removing.")
@@ -698,7 +687,6 @@ export class PetriView extends DOMWidgetView {
 
   private clearAll() {
     PetriView.graph.clear();
-    this.updateGraph();
   }
 
   private simulate() {
@@ -816,11 +804,28 @@ export class PetriView extends DOMWidgetView {
             i+=1
         }
     });
-    this.updateGraph();
   }
 
   private saveGraph() {
-    return PetriView.graph.toJSON();
+    document.getElementById("savePopup")!.style.display = "none";
+    const fileName = (<HTMLInputElement> document.getElementById("graphNameInput")!).value;
+    const jsonstring = JSON.stringify(PetriView.graph.toJSON());
+    localStorage.setItem(fileName, jsonstring);
+
+    // TODO: Check for links existing with the same fileName and overwrite them or delete and create new
+    var newLink = document.createElement("a");
+    newLink.textContent = fileName;
+    newLink.addEventListener("click", (e:Event) => this.unJSONify(fileName));
+    document.getElementById("dropdown-content")!.appendChild(newLink);
+    console.log(document.getElementById("dropdown-content")!.childNodes);
+
+    // Reset the value of the graphNameInput-field
+    (<HTMLInputElement> document.getElementById("input"))!.value = "";
+  }
+
+  private unJSONify(fileName: string) {
+    const jsonstring = localStorage.getItem(fileName)!;
+    PetriView.graph.fromJSON(JSON.parse(jsonstring));
   }
 
   private saveIMG() {
@@ -841,7 +846,7 @@ export class PetriView extends DOMWidgetView {
     }
   }
 
-  private enableButton(input: any) {
+  private enableLabelButton(input: any) {
     if (input.value != "" || PetriView.selectedCell.attributes.type == "pn.Place") {
       (<HTMLButtonElement> document.getElementById("changelabel")!).disabled = false;
     } else {
@@ -849,14 +854,21 @@ export class PetriView extends DOMWidgetView {
     }
   }
 
+  private enableSaveButton(input: any) {
+    if (input.value != "") {
+      (<HTMLButtonElement> document.getElementById("saveGraphAs")!).disabled = false;
+    } else {
+      (<HTMLButtonElement> document.getElementById("saveGraphAs")!).disabled = true;
+    }
+  }
+
   private static changeLabel() {
     document.getElementById("popup")!.style.display = "none";
-    var newLabel = document.querySelector("input")!.value;
+    var newLabel = (<HTMLInputElement> document.getElementById("input"))!.value;
 
     if (newLabel != "") {
       PetriView.selectedCell.attr('.label/text', newLabel);
-      // PetriView.updateGraph();
-      document.querySelector("input")!.value = "";
+      (<HTMLInputElement> document.getElementById("input"))!.value = "";
     }
   }
 
