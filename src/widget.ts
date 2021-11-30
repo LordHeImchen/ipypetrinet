@@ -11,9 +11,15 @@ import { MODULE_NAME, MODULE_VERSION } from './version';
 import * as joint from '../node_modules/jointjs/dist/joint';
 import '../css/widget.css';
 
+// import { fs } from "node/promises"
+// import * as fs from "fs"
+// import * as fs from '../node_modules/@types/node/fs/promises'
+// import * as fs from "fs/promises";
+
 // HERE IS THE IMPORT WHICH DOES NOT WORK
-// import * as fs from "fs";
-// var promises = require("fs").promises;
+// import * as fs from "node/fs/promises";
+// import promises = require("fs");
+// import { promises as fs } from "fs";
 
 window.joint = joint    // important for loading a saved graph (namespace problem)
 
@@ -28,7 +34,7 @@ export class PetriModel extends DOMWidgetModel {
       _view_name: PetriModel.view_name,
       _view_module: PetriModel.view_module,
       _view_module_version: PetriModel.view_module_version,
-      graph: [],
+      graph: {},
     };
   }
 
@@ -161,7 +167,7 @@ export class PetriView extends DOMWidgetView {
     changeLabel.className = "button button1";
     changeLabel.addEventListener("click", (e:Event) => PetriView.changeLabel());
     changeLabel.disabled = true;
-    changeLabel.textContent = "Change label";
+    changeLabel.textContent = "Change Label";
 
     popupContent.appendChild(input);
     popupContent.appendChild(changeLabel);
@@ -184,7 +190,7 @@ export class PetriView extends DOMWidgetView {
     var saveGraphAs = document.createElement("button");
     saveGraphAs.id = "saveGraphAs";
     saveGraphAs.className = "button button1";
-    saveGraphAs.addEventListener("click", (e:Event) => this.saveGraph());
+    saveGraphAs.addEventListener("click", (e:Event) => PetriView.saveGraph());
     saveGraphAs.disabled = true;
     saveGraphAs.textContent = "Save Graph!";
 
@@ -207,24 +213,43 @@ export class PetriView extends DOMWidgetView {
     this.el.appendChild(saveGraph);
     this.el.appendChild(saveIMG);
 
+    // Init paper, give it the respective ID and restrict its moving area
     this.initWidget();
     PetriView.paper.el.id = "paper";
-    this.el.appendChild(PetriView.paper.el);
+    PetriView.paper.options.restrictTranslate = function(cellView) { 
+      return cellView.paper!.getArea(); 
+    }
+    this.el.appendChild(PetriView.paper.el);   // append paper div
     this.el.lastChild?.appendChild(popup);     // make sure popup is a child of paper
     this.el.lastChild?.appendChild(savePopup); // make sure savePopup is a child of paper as well
 
-    // if clicked outside of ChangeLabel-Form, do not display it anymore
+    // if clicked outside of ChangeLabel-Form or SaveGraph-Form, do not display it anymore
     window.onclick = function(event: MouseEvent) {
-      if ((event.target! as Element).className === "popup" && PetriView.selectedCell.attributes.type != "pn.Transition") {
+      if (PetriView.selectedCell) {
+        if ((event.target! as Element).className === "popup" && (PetriView.selectedCell.attributes.type != "pn.Transition" ||
+            PetriView.selectedCell.attributes.attrs[".label"]["text"] != "")) {
+              (event.target! as HTMLDivElement).style.display = "none";
+              $("#changelabel").prop("disabled", true);
+        }
+      } else if ((event.target! as Element).className == "popup") {
         (event.target! as HTMLDivElement).style.display = "none";
+        (<HTMLInputElement> document.getElementById("graphNameInput"))!.value = "";
+        $("#saveGraphAs").prop("disabled", true);
       }
     }
 
     // Click changeLabel-button on keyboardinput "enter"
     document.addEventListener("keydown", function(e) {
-        if (e.key == "Enter" &&  !((document.getElementById("changelabel")! as HTMLButtonElement).disabled)) {
-            PetriView.changeLabel()
-        }
+      if (e.key == "Enter" &&  !((document.getElementById("changelabel")! as HTMLButtonElement)!.disabled)) {
+        PetriView.changeLabel()
+      }
+    })
+
+    // Click saveGraph-button on keyboardinput "enter"
+    document.addEventListener("keydown", function(e) {
+      if (e.key == "Enter" && !(<HTMLButtonElement> document.getElementById("saveGraphAs")!).disabled) {
+        PetriView.saveGraph()
+      }
     })
 
     // Paper on-click, -doubleclick, -alt-drag and on-hover functionalities
@@ -236,7 +261,6 @@ export class PetriView extends DOMWidgetView {
               jQuery('.joint-element').css("cursor", "crosshair")
               evt.data = cellView.model.position();
               this.findViewByModel(cellView.model).setInteractivity(false);
-              // this.findViewByModel(cellView.model).options.interactive = false;
               PetriView.selectedCell = cellView.model
           } else {
               jQuery('.joint-element').css("cursor", "move")
@@ -255,6 +279,14 @@ export class PetriView extends DOMWidgetView {
           }
       },
 
+      // if a blank part of paper is clicked, disselect the cell
+      'blank:pointerdown': function(cellView, evt) {
+        PetriView.graph.getElements().forEach(function(element: joint.dia.Cell) {
+          element.attr({".root": { "stroke": "#7c68fc" }});
+        })
+        PetriView.selectedCell = null;
+      },
+
       // when mousebutton is lifted up while altkey is pressed a link is created between source and destination
       // if altkey is not pressed simply unlock the cell again (only if Lock-Button was not pressed)
       'cell:pointerup': function(this: joint.dia.Paper, cellView: any, evt: any, x: any, y: any) {
@@ -262,7 +294,6 @@ export class PetriView extends DOMWidgetView {
               jQuery('.joint-element').css("cursor", "move")
               if (document.querySelector('#lock')!.textContent == " Lock") {
                 this.findViewByModel(cellView.model).setInteractivity(true);
-                // this.findViewByModel(cellView.model).options.interactive = true;
               }
               var coordinates = new joint.g.Point(x, y);
               var elementAbove = cellView.model;
@@ -272,7 +303,8 @@ export class PetriView extends DOMWidgetView {
               
               // If the two elements are connected already or have the same cell type, don't connect them (again).
               if ((elementBelow && PetriView.graph.getNeighbors(elementBelow).indexOf(elementAbove) === -1) && 
-                  (elementAbove.attributes.type != elementBelow.attributes.type)) {
+                  (elementAbove.attributes.type != elementBelow.attributes.type) && (elementAbove.attributes.type != "pn.Link") 
+                  && (elementBelow.attributes.type != "pn.Link")) {
                   
                   // Move the cell to the position before dragging and create a connection afterwards.
                   elementAbove.position(evt.data.x, evt.data.y);
@@ -283,7 +315,6 @@ export class PetriView extends DOMWidgetView {
               jQuery('.joint-element').css("cursor", "move")
               if (document.querySelector('#lock')!.textContent == " Lock") {
                 this.findViewByModel(cellView.model).setInteractivity(true);
-                // this.findViewByModel(cellView.model).options.interactive = true;
               }
           }
       },
@@ -310,42 +341,23 @@ export class PetriView extends DOMWidgetView {
           elementView.removeTools();
       },
 
-      // Prevent overflow of cells in paper-div
-      // TODO: prevent overflow to left and up
-      'cell:pointermove': function (cellView: any, evt: any, x: any, y: any) {
-          var bbox = cellView.getBBox();
-          var constrained = false;
-
-          var constrainedX = x;
-          if (bbox.x <= 0) { constrainedX = x + this.gridSize; constrained = true }
-          if (bbox.x + bbox.width >= $("#paper").width()!) { constrainedX = x - PetriView.gridSize; constrained = true }
-      
-          var constrainedY = y;
-          if (bbox.y <= 0) { constrainedY = y + this.gridSize; constrained = true }
-          if (bbox.y + bbox.height >= $("#paper").height()!) { constrainedY = y - PetriView.gridSize; constrained = true }
-      
-          //if you fire the event all the time you get a stack overflow
-          if (constrained) { cellView.pointermove(evt, constrainedX, constrainedY) }
-      },
-
       // Allow changing the label upon doubleclicking a place or transition
       'cell:pointerdblclick': function () {
-        // Jupyter.keyboard_manager.disable() would help to not run shortcuts if input is not focused
-        PetriView.showPopup();
+        // Jupyter.keyboard_manager.disable()
+        if (PetriView.selectedCell.attributes.type != "pn.Link") {
+          if (PetriView.selectedCell.attributes.type == "pn.Place" || PetriView.selectedCell.attributes.attrs[".label"]["text"] != "") {
+            $("#changelabel").prop("disabled", false);
+          }
+          PetriView.showPopup();
+        }
       }
     });
 
-    // EXAMPLE HOW TO UPDATE TYPESCRIPT FROM PYTHON:
-    // this.model.on("change:graph", this.updateGraph, this);
-    // this.model.on_some_change(["graph"], this.updateGraph, this);
+    // EXAMPLE HOW TO UPDATE TYPESCRIPT FROM PYTHON: (alternatively on_some_change)
+    this.model.on("change:graph", this.updateGraph, this);
 
     // UPDATING PYTHON BASED ON TYPESCRIPT
     PetriView.graph.on("change", this.updateGraph.bind(this), this);
-  }
-
-  private updateGraph() {
-    this.model.set("graph", PetriView.graph.getCells());
-    this.model.save_changes();
   }
 
   private initWidget() {
@@ -370,6 +382,36 @@ export class PetriView extends DOMWidgetView {
       linkPinning: false,                             // prevent dangling links
       interactive: function() { return true },        // make cells draggable
     });
+  }
+
+  private updateGraph() {
+    var allCells = PetriView.graph.getCells();
+    allCells.concat(PetriView.graph.getLinks());
+
+    var res: any[] = []
+    allCells.forEach(function(cell: any) {
+      if (cell.attributes.type == "pn.Place") {
+        var id = cell.attributes.id;
+        var name = cell.attributes.attrs[".label"]["text"];
+        var tokens = cell.attributes.tokens;
+        var type = "Place";
+        res.push({type, id, name, tokens});
+      } else if (cell.attributes.type == "pn.Link") {
+        var id = cell.attributes.id;
+        var source = cell.attributes.source.id;
+        var target = cell.attributes.target.id;
+        var type = "Link";
+        res.push({type, id, source, target});
+      } else {
+        var id = cell.attributes.id;
+        var name = cell.attributes.attrs[".label"]["text"];
+        var type = "Transition";
+        res.push({type, id, name});
+      }
+    });
+
+    this.model.set("graph", res);
+    this.model.save_changes();
   }
 
   private getTokenlist(cells: any) {
@@ -806,24 +848,27 @@ export class PetriView extends DOMWidgetView {
     });
   }
 
-  private saveGraph() {
+  private static saveGraph() {
     document.getElementById("savePopup")!.style.display = "none";
     const fileName = (<HTMLInputElement> document.getElementById("graphNameInput")!).value;
     const jsonstring = JSON.stringify(PetriView.graph.toJSON());
     localStorage.setItem(fileName, jsonstring);
 
-    // TODO: Check for links existing with the same fileName and overwrite them or delete and create new
-    var newLink = document.createElement("a");
-    newLink.textContent = fileName;
-    newLink.addEventListener("click", (e:Event) => this.unJSONify(fileName));
-    document.getElementById("dropdown-content")!.appendChild(newLink);
-    console.log(document.getElementById("dropdown-content")!.childNodes);
+    // Check for links existing with the same fileName and overwrite them
+    if ($("a").filter(function() { return $(this).text() == fileName}).length == 0) {
+      var newLink = document.createElement("a");
+      newLink.textContent = fileName;
+      newLink.addEventListener("click", (e:Event) => PetriView.unJSONify(fileName));
+      document.getElementById("dropdown-content")!.appendChild(newLink);
+      console.log(document.getElementById("dropdown-content")!.childNodes);
+    }
 
-    // Reset the value of the graphNameInput-field
-    (<HTMLInputElement> document.getElementById("input"))!.value = "";
+    // Reset the value of the graphNameInput-field and disable button again
+    (<HTMLInputElement> document.getElementById("graphNameInput"))!.value = "";
+    (<HTMLButtonElement> document.getElementById("saveGraphAs")!).disabled = true;
   }
 
-  private unJSONify(fileName: string) {
+  private static unJSONify(fileName: string) {
     const jsonstring = localStorage.getItem(fileName)!;
     PetriView.graph.fromJSON(JSON.parse(jsonstring));
   }
@@ -847,19 +892,13 @@ export class PetriView extends DOMWidgetView {
   }
 
   private enableLabelButton(input: any) {
-    if (input.value != "" || PetriView.selectedCell.attributes.type == "pn.Place") {
-      (<HTMLButtonElement> document.getElementById("changelabel")!).disabled = false;
-    } else {
-      (<HTMLButtonElement> document.getElementById("changelabel")!).disabled = true;
-    }
+    if (PetriView.selectedCell.attributes.type == "pn.Transition" && PetriView.selectedCell.attributes.attrs[".label"]["text"] == "") {
+      $("#changelabel").prop("disabled", !((<HTMLInputElement> document.getElementById("input"))!.value));
+    } 
   }
 
   private enableSaveButton(input: any) {
-    if (input.value != "") {
-      (<HTMLButtonElement> document.getElementById("saveGraphAs")!).disabled = false;
-    } else {
-      (<HTMLButtonElement> document.getElementById("saveGraphAs")!).disabled = true;
-    }
+    $("#saveGraphAs").prop("disabled", !((<HTMLInputElement> document.getElementById("graphNameInput"))!.value));
   }
 
   private static changeLabel() {
@@ -869,6 +908,7 @@ export class PetriView extends DOMWidgetView {
     if (newLabel != "") {
       PetriView.selectedCell.attr('.label/text', newLabel);
       (<HTMLInputElement> document.getElementById("input"))!.value = "";
+      $("#changelabel").prop("disabled", true);
     }
   }
 
