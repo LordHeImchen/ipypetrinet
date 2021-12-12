@@ -68,6 +68,50 @@ input:focus {
   border: 2px solid #555;
 }
 
+label {
+  padding: 15px;
+  background-color: whitesmoke;
+  border: 1px solid gray;
+  color: black;
+}
+
+label:hover {
+  border: 1px solid black;
+  cursor: pointer;
+}
+
+/* input[type=file]::-webkit-file-upload-button {
+  border: 2px solid #6c5ce7;
+  padding: .2em .4em;
+  border-radius: .2em;
+  background-color: #a29bfe;
+  transition: 1s;
+  content: "UploadIT";
+} */
+
+/* .fileinput {
+  content: "Select JSON-file...";
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: black;
+  padding: 10px;
+}
+
+.fileinput:hover {
+  border-color: black;
+  cursor: pointer;
+}
+.fileinput:active::before {
+  background: -webkit-linear-gradient(top, #e3e3e3, #f9f9f9);
+} */
+
+/* .fileinput {
+  background-color: gray;
+  padding: 15;
+  color: black;
+} */
+
 /* CSS for PopUp-Form */
 .popup {
   display: none;       /* Hidden by default */
