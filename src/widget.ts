@@ -9,7 +9,8 @@ import '../css/widget.css';
 // this is very important for loading a saved graph (namespace problem)
 window.joint = joint;
 
-// Extend the joint.shapes.pn.Transition
+// Extending the joint.shapes.pn.Transition:
+// Set some constants to structure it clearly
 const PADDING_S = 4;
 const PADDING_L = 4;
 const FONT_FAMILY = 'sans-serif';
@@ -22,7 +23,7 @@ const LIST_MAX_PORT_COUNT = 5;
 const LIST_GROUP_NAME = 'conditions';
 const LIST_ITEM_HEIGHT = 23;
 const LIST_ITEM_WIDTH = 120;
-const LIST_ITEM_LABEL = 'Condition Item which has a very long text that exceeds the width';
+const LIST_ITEM_LABEL = 'Condition Item';
 const LIST_ITEM_GAP = 1;
 const LIST_BUTTON_RADIUS = 16;
 const LIST_ADD_BUTTON_SIZE = 20;
@@ -35,7 +36,6 @@ const itemPosition = (portsArgs: joint.dia.Element.Port[], elBBox: joint.dia.BBo
       return new joint.g.Point(0, bottom - y);
   });
 };
-
 const conditionAttributes = {
   attrs: {
     portBody: {
@@ -43,7 +43,9 @@ const conditionAttributes = {
       height: 'calc(h)',
       x: '2',
       y: 'calc(-0.5*h)',
-      fill: '#333'
+      fill: '#333',
+      rx: 3,
+      ry: 3
     },
     portRemoveButton: {
       cursor: 'pointer',
@@ -103,7 +105,6 @@ const conditionAttributes = {
     }]
   }]
 };
-
 const bodyAttributes = {
   attrs: {
       ".root": {
@@ -132,7 +133,7 @@ const bodyAttributes = {
           title: 'Add Condition',
           cursor: 'pointer',
           event: 'element:port:add',
-          transform: `translate(calc(w-${3 * PADDING_S}),calc(h))`
+          transform: `translate(calc(w-${3 * PADDING_S}),calc(h))`,
       },
       portAddButtonBody: {
           width: LIST_ADD_BUTTON_SIZE,
@@ -166,14 +167,14 @@ const bodyAttributes = {
       }]
   }]
 };
-
+// Actual Extension of the Transition:
 class customTransition extends joint.shapes.pn.Transition {
   defaults() {
     return {
       ...super.defaults,
       ...bodyAttributes,
       type: "customTransition",
-      size: { width: LIST_ITEM_WIDTH + 4, height: this.resizeToFitPorts() },
+      size: { width: LIST_ITEM_WIDTH + 4, height: 0 },
       ports: {
         groups: {
           [LIST_GROUP_NAME]: {
@@ -232,6 +233,8 @@ class customTransition extends joint.shapes.pn.Transition {
       });
   }
 }
+// Make sure graph.fromJSON() will find the custom shape
+Object.assign(joint.shapes, { customTransition });
 
 export class PetriModel extends DOMWidgetModel {
 
@@ -261,8 +264,6 @@ export class PetriModel extends DOMWidgetModel {
   static view_module_version = MODULE_VERSION;
 }
 
-// TODO: Use bounding box for restricting the moving area of cells
-// TODO: Check interactive options and maybe use other key to add vertex???
 export class PetriView extends DOMWidgetView {
   static graph: joint.dia.Graph;
   static selectedCell: any;
@@ -342,7 +343,7 @@ export class PetriView extends DOMWidgetView {
 
     var lockModel = document.createElement("button");
     lockModel.className = "button button4";
-    lockModel.id = "lock"
+    lockModel.id = "lock";
     lockModel.addEventListener("click", (e:Event) => this.lockModel());
     lockModel.innerHTML = '<i class="fa fa-unlock"></i>' + " Lock";
 
@@ -362,14 +363,24 @@ export class PetriView extends DOMWidgetView {
     saveIMG.innerHTML = '<i class="fa fa-download"></i>' + " Download SVG";
 
     var importJSON = document.createElement("button");
-    importJSON.className = "button button4"
+    importJSON.className = "button button4";
     importJSON.addEventListener("click", (e:Event) => PetriView.showPopup("uploadPopup"));
     importJSON.innerHTML = '<i class="fa fa-upload"></i>' + " Import JSON";
 
     var downloadJSON = document.createElement("button");
-    downloadJSON.className = "button button4"
+    downloadJSON.className = "button button4";
     downloadJSON.addEventListener("click", (e:Event) => this.downloadJSON());
     downloadJSON.innerHTML = '<i class="fa fa-download"></i>' + " Download JSON";
+
+    var zoomIn = document.createElement("button");
+    zoomIn.className = "button button1";
+    zoomIn.addEventListener("click", (e:Event) => PetriView.zoomIt(1));
+    zoomIn.innerHTML = '<i class="fa fa-search-plus"></i>' + " Zoom in";
+
+    var zoomOut = document.createElement("button");
+    zoomOut.className = "button button1";
+    zoomOut.addEventListener("click", (e:Event) => PetriView.zoomIt(-1));
+    zoomOut.innerHTML = '<i class="fa fa-search-minus"></i>' + " Zoom out";
 
     // UPLOAD-POPUP
     var uploadPopup = document.createElement("div");
@@ -531,6 +542,8 @@ export class PetriView extends DOMWidgetView {
     this.el.appendChild(saveIMG);
     this.el.appendChild(importJSON);
     this.el.appendChild(downloadJSON);
+    this.el.appendChild(zoomIn);
+    this.el.appendChild(zoomOut);
     this.el.appendChild(popup);
     this.el.appendChild(linkPopup);
     this.el.appendChild(savePopup);
@@ -592,21 +605,21 @@ export class PetriView extends DOMWidgetView {
           this.findViewByModel(cellView.model).setInteractivity(false);
         } else {
           jQuery('.joint-element').css("cursor", "move");
-
-          // Reset "old" selectedCell-stroke if slectedCell is not the same as cellView
-          if (PetriView.selectedCell != null && PetriView.selectedCell != cellView.model) {
-            if (PetriView.selectedCell.attributes.type == "pn.Place") {
-              PetriView.selectedCell.attr({".root": { "stroke": "#7c68fc" }});
-            } else { PetriView.selectedCell.attr({"body": { "stroke": "#7c68fc" }}); }
-          }
-
-          if (cellView.model.attributes.type == "pn.Place") {
-            cellView.model.attr({".root": { "stroke": (cellView.model.attributes.attrs[".root"]["stroke"] == "red") ? "#7c68fc" : "red" }});
-          } 
-          else if (cellView.model.attributes.type == "customTransition") {
-            cellView.model.attr({"body": { "stroke": (cellView.model.attributes.attrs["body"]["stroke"] == "red") ? "#7c68fc" : "red" }});
-          }
         }
+
+        // Reset "old" selectedCell-stroke if slectedCell is not the same as cellView
+        if (PetriView.selectedCell != null && PetriView.selectedCell != cellView.model) {
+          if (PetriView.selectedCell.attributes.type == "pn.Place") {
+            PetriView.selectedCell.attr({".root": { "stroke": "#7c68fc" }});
+          } else { PetriView.selectedCell.attr({"body": { "stroke": "#7c68fc" }}); }
+        }
+
+        if (cellView.model.attributes.type == "pn.Place") {
+          cellView.model.attr({".root": { "stroke": (cellView.model.attributes.attrs[".root"]["stroke"] == "red") ? "#7c68fc" : "red" }});
+        } else if (cellView.model.attributes.type == "customTransition") {
+          cellView.model.attr({"body": { "stroke": (cellView.model.attributes.attrs["body"]["stroke"] == "red") ? "#7c68fc" : "red" }});
+        }
+
         PetriView.selectedCell = cellView.model;
       },
 
@@ -668,14 +681,16 @@ export class PetriView extends DOMWidgetView {
       'cell:mouseenter': (elementView: joint.dia.ElementView) => {
         console.log(elementView.model);
         if (document.querySelector('#lock')!.textContent == " Lock") {
+          var x = "95%"; var y = "30%";
+          if (elementView.model.attributes.type == "customTransition") { var x = "98%"; var y = "0%"; }
           if (elementView.model.attributes.type != "pn.Link") {
             elementView.addTools(
                 new joint.dia.ToolsView({
                     tools: [
                         new joint.elementTools.Remove({
                         useModelGeometry: true,
-                        y: '30%',
-                        x: '95%',
+                        x: x,
+                        y: y,
                         }),
                     ],
                 })
@@ -700,13 +715,6 @@ export class PetriView extends DOMWidgetView {
         }
       },
 
-      'blank:mousewheel': function(evt, x, y, delta) {
-        if (document.querySelector('#lock')!.textContent == " Lock") {
-          evt.preventDefault();
-          PetriView.zoomOnMousewheel(x, y, delta);
-        }
-      },
-
       'element:port:remove': function(elementView: joint.dia.ElementView, evt: joint.dia.Event): void {
         evt.stopPropagation();
         const portId = elementView.findAttribute('port', evt.target)!;
@@ -717,12 +725,16 @@ export class PetriView extends DOMWidgetView {
       'element:port:add': function(elementView: joint.dia.ElementView, evt: joint.dia.Event): void {
         evt.stopPropagation();
         PetriView.selectedCell = elementView.model;
-        PetriView.showPopup("condPopup");
+
+        if (elementView.model.attributes.attrs!["portAddButton"]!["fill"] != "lightgray") {
+          PetriView.showPopup("condPopup");
+        }
       },
     });
 
     // UPDATE TYPESCRIPT FROM PYTHON: (alternatively on_some_change)
     this.model.on("change:graph", this.updateGraph, this);
+
     // UPDATING PYTHON BASED ON TYPESCRIPT
     PetriView.graph.on("change", this.updateGraph.bind(this), this);
   }
@@ -801,14 +813,16 @@ export class PetriView extends DOMWidgetView {
     $('#fileInput').prev('label').text(file);
   }
 
-  private static zoomOnMousewheel(x: any, y: any, delta: any) {
-    var MIN_ZOOM = 0.3;
+  private static zoomIt(delta: number) {
+    var MIN_ZOOM = 0.2;
     var MAX_ZOOM = 3;
     var currentZoom = PetriView.paper.scale().sx;
-    var newZoom = currentZoom + delta * 0.1;
-    if (newZoom > MIN_ZOOM && newZoom < MAX_ZOOM) {
+    if (document.querySelector('#lock')!.textContent == " Lock") {
+      var newZoom = currentZoom + 0.2 * delta;
+      if (newZoom > MIN_ZOOM && newZoom < MAX_ZOOM) {
         PetriView.paper.translate(0, 0);
-        PetriView.paper.scale(newZoom, newZoom, x, y);
+        PetriView.paper.scale(newZoom, newZoom);
+      }
     }
   }
 
@@ -830,24 +844,27 @@ export class PetriView extends DOMWidgetView {
         position: { x: 140, y: 50 },
         attrs: {
             '.label': {
-                'text': 'ready',
-                'fill': '#7c68fc' },
+              'text': 'ready',
+              'fill': '#7c68fc',
+              'font-size': 20,
+              'font-weight': 'bold'
+            },
             '.root': {
-                'stroke': '#7c68fc',
-                'stroke-width': 3,
+              'stroke': '#7c68fc',
+              'stroke-width': 3,
             },
             '.alot > text': {
-                'fill': '#fe854c',
-                'font-family': 'Courier New',
-                'font-size': 20,
-                'font-weight': 'bold',
-                'ref-x': 0.5,
-                'ref-y': 0.5,
-                'y-alignment': -0.5,
-                'transform': null as any
+              'fill': '#fe854c',
+              'font-family': 'Courier New',
+              'font-size': 20,
+              'font-weight': 'bold',
+              'ref-x': 0.5,
+              'ref-y': 0.5,
+              'y-alignment': -0.5,
+              'transform': null as any
             },
             '.tokens > circle': {
-                'fill': '#7a7e9b'
+              'fill': '#7a7e9b'
             }
         },
         tokens: 1,
@@ -882,8 +899,8 @@ export class PetriView extends DOMWidgetView {
         position: { x: 20, y: 170 },
         attrs: {
             'label': {
-                'text': 'produce',
-                'fill': '#fe854f'
+              'text': 'produce',
+              'fill': '#fe854f'
             },
         },
     });
@@ -918,24 +935,27 @@ export class PetriView extends DOMWidgetView {
         position: { x: 50, y: 150 },
         attrs: {
             '.label': {
-                'text': 'A1',
-                'fill': '#7c68fc' },
+              'text': 'A1',
+              'fill': '#7c68fc',
+              'font-size': 12,
+              'font-weight': 'bold'
+            },
             '.root': {
-                'stroke': '#7c68fc',
-                'stroke-width': 3,
+              'stroke': '#7c68fc',
+              'stroke-width': 3,
             },
             '.alot > text': {
-                'fill': '#fe854c',
-                'font-family': 'Courier New',
-                'font-size': 20,
-                'font-weight': 'bold',
-                'ref-x': 0.5,
-                'ref-y': 0.5,
-                'y-alignment': -0.5,
-                'transform': null as any
+              'fill': '#fe854c',
+              'font-family': 'Courier New',
+              'font-size': 20,
+              'font-weight': 'bold',
+              'ref-x': 0.5,
+              'ref-y': 0.5,
+              'y-alignment': -0.5,
+              'transform': null as any
             },
             '.tokens > circle': {
-                'fill': '#7a7e9b',
+              'fill': '#7a7e9b',
             }
         },
         tokens: 1,
@@ -1005,6 +1025,7 @@ export class PetriView extends DOMWidgetView {
     return new joint.shapes.pn.Link({
         source: { id: a.id, selector: '.root' },
         target: { id: b.id, selector: '.root' },
+        z: -1,
         attrs: { 
           text: {
             fill: '#000000',
@@ -1019,7 +1040,7 @@ export class PetriView extends DOMWidgetView {
               'fill': 'none',
               'stroke-linejoin': 'round',
               'stroke-width': '2',
-              'stroke': '#4b4a67'
+              'stroke': '#4b4a67', // '#7a7e9b'
           },
         },
         // Hides the standard background-rect of the label
@@ -1386,59 +1407,3 @@ export class PetriView extends DOMWidgetView {
     });
   }
 }
-
-  // 'link:mouseenter': onPaperLinkMouseEnter,
-  // 'link:mouseleave': onPaperLinkMouseLeave
-  // private onPaperLinkMouseEnter(linkView: joint.dia.LinkView) {
-  //     const toolsView = new joint.dia.ToolsView({
-  //         tools: [new joint.linkTools.Remove()]
-  //     });
-  //     linkView.addTools(toolsView);
-  // }
-
-  // private onPaperLinkMouseLeave(linkView: joint.dia.LinkView) {
-  //     linkView.removeTools();
-  // }
-
-
-  // private initConditions(popupContent: HTMLDivElement) {
-  //   // Update conditions to be added if a new Place is added
-  //   PetriView.conditions = this.model.get("conditions");
-  //   var conds = PetriView.conditions[0];
-
-  //   // Empty PopUp-Content
-  //   while (popupContent.firstChild) {
-  //     popupContent.removeChild(popupContent.firstChild);
-  //   }
-  
-  //   // Create Input-field for Label and "Save-Button"
-  //   var input = document.createElement("input");
-  //   input.placeholder = "Enter label...";
-  //   input.id = "input";
-  //   input.oninput = this.enableLabelButton;
-  //   var label = document.createElement("p");
-  //   label.textContent = "Label:";
-  //   popupContent.appendChild(label);
-  //   popupContent.appendChild(input);
-
-  //   for (let key in conds) {
-  //     let value = conds[key]
-  //     // key = key[0].toUpperCase() + key.substring(1)    // Make "key" start with uppercase-char
-  //     var newinput = document.createElement("input");
-  //     var inputlabel = document.createElement("p");
-  //     inputlabel.textContent = key + ":";
-  //     newinput.id = key + "123";                       // Make sure id is not given somewhere else by adding 123
-  //     newinput.value = value;
-  //     newinput.placeholder = "Modify " + key + "...";
-  //     popupContent.appendChild(inputlabel);
-  //     popupContent.appendChild(newinput);
-  //   }
-
-  //   var changeLabel = document.createElement("button");
-  //   changeLabel.id = "changelabel";
-  //   changeLabel.className = "button button1";
-  //   changeLabel.addEventListener("click", (e:Event) => PetriView.saveChanges());
-  //   changeLabel.disabled = true;
-  //   changeLabel.textContent = "Save Changes!";
-  //   popupContent.appendChild(changeLabel);
-  // }
