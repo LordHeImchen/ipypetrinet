@@ -5,22 +5,21 @@
 // import {} from '@jupyter-widgets/base';
 
 import { createTestModel } from './utils';
-
-import { ExampleModel } from '..';
+import { PetriModel } from '..';
 
 describe('Example', () => {
-  describe('ExampleModel', () => {
+  describe('PetriModel', () => {
     it('should be createable', () => {
-      const model = createTestModel(ExampleModel);
-      expect(model).toBeInstanceOf(ExampleModel);
-      expect(model.get('value')).toEqual('Hello World');
+      const model = createTestModel(PetriModel);
+      expect(model).toBeInstanceOf(PetriModel);
+      expect(model.get('graph')).toEqual([]);
     });
 
-    it('should be createable with a value', () => {
-      const state = { value: 'Foo Bar!' };
-      const model = createTestModel(ExampleModel, state);
-      expect(model).toBeInstanceOf(ExampleModel);
-      expect(model.get('value')).toEqual('Foo Bar!');
-    });
+    // it('should be createable with a value', () => {
+    //   const state = { value: "Foo Bar!" };
+    //   const model = createTestModel(PetriModel, state);
+    //   expect(model).toBeInstanceOf(PetriModel);
+    //   expect(model.get('value')).toEqual("Foo Bar!");
+    // });
   });
 });
