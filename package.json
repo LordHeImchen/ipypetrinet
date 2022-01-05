@@ -1,6 +1,6 @@
 {
   "name": "ipypetrinet",
-  "version": "1.0",
+  "version": "1.0.0",
   "description": "A custom petrinet widget.",
   "keywords": [
     "jupyter",
