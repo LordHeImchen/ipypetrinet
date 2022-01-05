@@ -24,10 +24,12 @@ Important note: Presentation attributes have a lower precedence over CSS style r
   cursor: pointer;
   background-color: unset;
 }
-.button1 {background-color: green;}
+.button1 {background-color: #7c68fc;}
+.button2 {background-color: #303030;}
+/* .button1 {background-color: green;}
 .button2 {background-color: deepskyblue;}
 .button3 {background-color: red;}
-.button4 {background-color: orange;}
+.button4 {background-color: orange;} */
 
 /* On click button styling */
 .button:active {
@@ -36,25 +38,14 @@ Important note: Presentation attributes have a lower precedence over CSS style r
 }
 
 /* Darker background on mouse-over */
-.button1:hover {
-  background-color: darkgreen; 
-}
-.button2:hover {
-  background-color: dodgerblue;
-}
-.button3:hover {
-  background-color: firebrick;
-}
-.button4:hover {
-  background-color: darkorange;
-}
+.button1:hover { background-color: #6656d1; }
+.button2:hover { background-color: #fe854f; } /* Alternativ darkorange? */
 
 .button:disabled {
   opacity: 0.4;
 }
 
 /* Style input field */
-
 input {
   padding: 15px;
   width: 100%;

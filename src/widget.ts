@@ -281,7 +281,7 @@ export class PetriView extends DOMWidgetView {
     dropdown.className = "dropdown";
     
     var graphsButton = document.createElement("button");
-    graphsButton.className = "button button1";
+    graphsButton.className = "button button2";
     graphsButton.innerHTML = '<i class="fa fa-list"></i>' + " Graphs";
 
     var dropdownContent = document.createElement("div");
@@ -312,73 +312,73 @@ export class PetriView extends DOMWidgetView {
     removeToken.innerHTML = '<i class="fa fa-minus"></i>';
 
     var addPlace = document.createElement("button");
-    addPlace.className = "button button2";
+    addPlace.className = "button button1";
     addPlace.addEventListener("click", (e:Event) => this.addPlace());
     addPlace.innerHTML = '<i class="fa fa-plus"></i>' + " Place";
     
     var addTrans = document.createElement("button");
-    addTrans.className = "button button2";
+    addTrans.className = "button button1";
     addTrans.addEventListener("click", (e:Event) => this.addTrans());
     addTrans.innerHTML = '<i class="fa fa-plus"></i>' + " Transition";
 
     var removeCell = document.createElement("button");
-    removeCell.className = "button button2";
+    removeCell.className = "button button1";
     removeCell.addEventListener("click", (e:Event) => this.removeCell());
     removeCell.innerHTML = '<i class="fa fa-trash"></i>' + " Remove";
 
     var clearAll = document.createElement("button");
-    clearAll.className = "button button2";
+    clearAll.className = "button button1";
     clearAll.addEventListener("click", (e:Event) => this.clearAll());
     clearAll.innerHTML = '<i class="fa fa-eraser"></i>' + " Clear";
 
     var simulate = document.createElement("button");
-    simulate.className = "button button3";
+    simulate.className = "button button1";
     simulate.addEventListener("click", (e:Event) => this.simulate());
     simulate.innerHTML = '<i class="fa fa-caret-right icon-large"></i>' + " Play";
 
     var stopSimulation = document.createElement("button");
-    stopSimulation.className = "button button3";
+    stopSimulation.className = "button button1";
     stopSimulation.addEventListener("click", (e:Event) => this.stopSimulation());
     stopSimulation.innerHTML = '<i class="fa fa-stop"></i>' + " Stop";
 
     var lockModel = document.createElement("button");
-    lockModel.className = "button button4";
+    lockModel.className = "button button1";
     lockModel.id = "lock";
     lockModel.addEventListener("click", (e:Event) => this.lockModel());
     lockModel.innerHTML = '<i class="fa fa-unlock"></i>' + " Lock";
 
     var reloadSim = document.createElement("button");
-    reloadSim.className = "button button4";
+    reloadSim.className = "button button1";
     reloadSim.addEventListener("click", (e:Event) => this.resetSim());
     reloadSim.innerHTML = '<i class="fa fa-refresh"></i>' + " Reset";
 
     var saveGraph = document.createElement("button");
-    saveGraph.className = "button button4";
+    saveGraph.className = "button button2";
     saveGraph.addEventListener("click", (e:Event) => PetriView.showPopup("savePopup"));
     saveGraph.innerHTML = '<i class="fa fa-save"></i>' + " Save Graph";
 
     var saveIMG = document.createElement("button");
-    saveIMG.className = "button button4";
+    saveIMG.className = "button button2";
     saveIMG.addEventListener("click", (e:Event) => this.saveIMG());
     saveIMG.innerHTML = '<i class="fa fa-download"></i>' + " Download SVG";
 
     var importJSON = document.createElement("button");
-    importJSON.className = "button button4";
+    importJSON.className = "button button2";
     importJSON.addEventListener("click", (e:Event) => PetriView.showPopup("uploadPopup"));
     importJSON.innerHTML = '<i class="fa fa-upload"></i>' + " Import JSON";
 
     var downloadJSON = document.createElement("button");
-    downloadJSON.className = "button button4";
+    downloadJSON.className = "button button2";
     downloadJSON.addEventListener("click", (e:Event) => this.downloadJSON());
     downloadJSON.innerHTML = '<i class="fa fa-download"></i>' + " Download JSON";
 
     var zoomIn = document.createElement("button");
-    zoomIn.className = "button button1";
+    zoomIn.className = "button button2";
     zoomIn.addEventListener("click", (e:Event) => PetriView.zoomIt(1));
     zoomIn.innerHTML = '<i class="fa fa-search-plus"></i>' + " Zoom in";
 
     var zoomOut = document.createElement("button");
-    zoomOut.className = "button button1";
+    zoomOut.className = "button button2";
     zoomOut.addEventListener("click", (e:Event) => PetriView.zoomIt(-1));
     zoomOut.innerHTML = '<i class="fa fa-search-minus"></i>' + " Zoom out";
 
@@ -528,22 +528,42 @@ export class PetriView extends DOMWidgetView {
 
     // ADD EVERYTHING TO NOTEBOOK HTML CODE (Maybe better use this.el.append(dropdown, addToken, ...))
     this.el.appendChild(dropdown);
-    this.el.appendChild(addToken);
-    this.el.appendChild(removeToken);
-    this.el.appendChild(addPlace);
-    this.el.appendChild(addTrans);
-    this.el.appendChild(removeCell);
-    this.el.appendChild(clearAll);
-    this.el.appendChild(simulate);
-    this.el.appendChild(stopSimulation);
-    this.el.appendChild(lockModel);
-    this.el.appendChild(reloadSim);
     this.el.appendChild(saveGraph);
-    this.el.appendChild(saveIMG);
     this.el.appendChild(importJSON);
+    this.el.appendChild(saveIMG);
     this.el.appendChild(downloadJSON);
     this.el.appendChild(zoomIn);
     this.el.appendChild(zoomOut);
+    this.el.appendChild(addPlace);
+    this.el.appendChild(addTrans);
+    this.el.appendChild(addToken);
+    this.el.appendChild(removeToken);
+    this.el.appendChild(removeCell);
+    this.el.appendChild(clearAll);
+    this.el.appendChild(lockModel);
+    this.el.appendChild(simulate);
+    this.el.appendChild(stopSimulation);
+    this.el.appendChild(reloadSim);
+
+
+    // this.el.appendChild(dropdown);
+    // this.el.appendChild(addToken);
+    // this.el.appendChild(removeToken);
+    // this.el.appendChild(addPlace);
+    // this.el.appendChild(addTrans);
+    // this.el.appendChild(removeCell);
+    // this.el.appendChild(clearAll);
+    // this.el.appendChild(simulate);
+    // this.el.appendChild(stopSimulation);
+    // this.el.appendChild(lockModel);
+    // this.el.appendChild(reloadSim);
+    // this.el.appendChild(saveGraph);
+    // this.el.appendChild(saveIMG);
+    // this.el.appendChild(importJSON);
+    // this.el.appendChild(downloadJSON);
+    // this.el.appendChild(zoomIn);
+    // this.el.appendChild(zoomOut);
+
     this.el.appendChild(popup);
     this.el.appendChild(linkPopup);
     this.el.appendChild(savePopup);
@@ -679,7 +699,6 @@ export class PetriView extends DOMWidgetView {
 
       // Add small remove-options on hover above places and transitions
       'cell:mouseenter': (elementView: joint.dia.ElementView) => {
-        console.log(elementView.model);
         if (document.querySelector('#lock')!.textContent == " Lock") {
           var x = "95%"; var y = "30%";
           if (elementView.model.attributes.type == "customTransition") { var x = "98%"; var y = "0%"; }
@@ -820,7 +839,7 @@ export class PetriView extends DOMWidgetView {
     if (document.querySelector('#lock')!.textContent == " Lock") {
       var newZoom = currentZoom + 0.2 * delta;
       if (newZoom > MIN_ZOOM && newZoom < MAX_ZOOM) {
-        PetriView.paper.translate(0, 0);
+        // PetriView.paper.translate(0, 0);
         PetriView.paper.scale(newZoom, newZoom);
       }
     }
