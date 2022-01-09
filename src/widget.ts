@@ -175,6 +175,7 @@ class customTransition extends joint.shapes.pn.Transition {
       ...bodyAttributes,
       type: "customTransition",
       size: { width: LIST_ITEM_WIDTH + 4, height: 0 },
+      exectime: "1",
       ports: {
         groups: {
           [LIST_GROUP_NAME]: {
@@ -248,6 +249,8 @@ export class PetriModel extends DOMWidgetModel {
       _view_module: PetriModel.view_module,
       _view_module_version: PetriModel.view_module_version,
       graph: [],
+      caseAttrs: new Array,
+      eventAttrs: new Array,
     };
   }
 
@@ -271,6 +274,8 @@ export class PetriView extends DOMWidgetView {
   static paper: joint.dia.Paper;
   static backupTokens: any;
   static dragStartPosition: any;
+  static caseAttrs: Array<string>;
+  static eventAttrs: Array<string> = [];
   simulationId: any;
   width: any;
   height: any;
@@ -382,6 +387,204 @@ export class PetriView extends DOMWidgetView {
     zoomOut.addEventListener("click", (e:Event) => PetriView.zoomIt(-1));
     zoomOut.innerHTML = '<i class="fa fa-search-minus"></i>' + " Zoom out";
 
+    var addAttrs = document.createElement("button");
+    addAttrs.className = "button button1";
+    addAttrs.addEventListener("click", (e:Event) => PetriView.showPopup("attrPopup"));
+    addAttrs.innerHTML = '<i class="fa fa-plus"></i>' + " Attributes";
+
+    // ATTRIBUTES-POPUP
+    var attrPopup = document.createElement("div");
+    attrPopup.id = "attrPopup";
+    attrPopup.className = "popup";
+    attrPopup.style.display = "none";
+
+    var attrPopupContent = document.createElement("div");
+    attrPopupContent.className = "popup-content attributes";
+    attrPopupContent.id = "attrPopupContent";
+
+    var caseTab = document.createElement("button");
+    caseTab.id = "caseTab";
+    caseTab.className = "tablinks active";
+    caseTab.textContent = "Add Case-Attributes";
+    caseTab.addEventListener("click", (e:Event) => this.showTab(caseTab.id));
+
+    var eventTab = document.createElement("button");
+    eventTab.id = "eventTab";
+    eventTab.className = "tablinks";
+    eventTab.textContent = "Add Event-Attributes";
+    eventTab.addEventListener("click", (e:Event) => this.showTab(eventTab.id));
+
+    var tabBar = document.createElement("div");
+    tabBar.id = "tabBar";
+    tabBar.className = "tab";
+    tabBar.style.display = "flex";
+    tabBar.append(caseTab, eventTab);
+
+    var caseAttrsList = document.createElement('ul');
+    caseAttrsList.id = "caseAttrsList";
+
+    var attrName = document.createElement("input");
+    attrName.id = "attrName";
+    attrName.type = "text";
+    attrName.placeholder = "Name your attribute...";
+    attrName.oninput = this.enableAttributeButtons;
+
+    var check0 = document.createElement("input");
+    check0.type = "radio";
+    check0.id = "staticAttr";
+    check0.name = "dist";
+    check0.addEventListener("change", (e:Event) => this.toggleFields(check0.id));
+    var label0 = document.createElement("label");
+    label0.htmlFor = "staticAttr";
+    label0.textContent = "Static";
+    var div0 = document.createElement("div");
+    div0.style.display = "flex";
+    div0.append(check0, label0);
+    
+    var staticValue = document.createElement("input");
+    staticValue.id = "staticVal";
+    staticValue.placeholder = "Set static value...";
+    staticValue.style.display = "none";
+
+    var check1 = document.createElement("input");
+    check1.type = "radio";
+    check1.id = "normalDist";
+    check1.name = "dist";
+    check1.addEventListener("change", (e:Event) => this.toggleFields(check1.id));
+    var label1 = document.createElement("label");
+    label1.htmlFor = "normalDist";
+    label1.textContent = "Normal Distribution";
+    var div1 = document.createElement("div");
+    div1.style.display = "flex";
+    div1.append(check1, label1);
+
+    var mue = document.createElement("input");
+    mue.id = "mue";
+    mue.type = "number";
+    mue.placeholder = "Select mean...";
+    mue.style.display = "none";
+
+    var sigma = document.createElement("input");
+    sigma.id = "sigma";
+    sigma.type = "number";
+    sigma.placeholder = "Select sigma...";
+    sigma.style.display = "none";
+
+    var check2 = document.createElement("input");
+    check2.type = "radio";
+    check2.id = "bernDist";
+    check2.name = "dist";
+    check2.addEventListener("change", (e:Event) => this.toggleFields(check2.id));
+    var label2 = document.createElement("label");
+    label2.htmlFor = "bernDist";
+    label2.textContent = "Bernoulli Distribution";
+    label2.append(check2)
+    var div2 = document.createElement("div");
+    div2.style.display = "flex";
+    div2.append(check2, label2);
+
+    var n = document.createElement("input");
+    n.id = "n";
+    n.placeholder = "Choose n..."
+    n.type = "number";
+    n.min = "0";
+    n.step = "1";
+    n.style.display = "none";
+
+    var p = document.createElement("input");
+    p.id = "p";
+    p.placeholder = "Choose p..."
+    p.type = "number";
+    p.min = "0";
+    p.max = "1";
+    p.step = "0.01";
+    p.style.display = "none";
+
+    var check3 = document.createElement("input");
+    check3.type = "radio";
+    check3.id = "gammaDist";
+    check3.name = "dist";
+    check3.addEventListener("change", (e:Event) => this.toggleFields(check3.id));
+    var label3 = document.createElement("label");
+    label3.htmlFor = "gammaDist";
+    label3.textContent = "Gamma Distribution";
+    var div3 = document.createElement("div");
+    div3.style.display = "flex";
+    div3.append(check3, label3);
+
+    var k = document.createElement("input");
+    k.id = "k";
+    k.placeholder = "Choose k..."
+    k.type = "number";
+    k.min = "0";
+    k.style.display = "none";
+
+    var theta = document.createElement("input");
+    theta.id = "theta";
+    theta.placeholder = "Choose theta..."
+    theta.type = "number";
+    theta.min = "0";
+    theta.style.display = "none";
+
+    var check4 = document.createElement("input");
+    check4.type = "radio";
+    check4.id = "expoDist";
+    check4.name = "dist";
+    check4.addEventListener("change", (e:Event) => this.toggleFields(check4.id));
+    var label4 = document.createElement("label");
+    label4.htmlFor = "expoDist";
+    label4.textContent = "Exponential Distribution";
+    var div4 = document.createElement("div");
+    div4.style.display = "flex";
+    div4.append(check4, label4);
+
+    var beta = document.createElement("input");
+    beta.id = "beta";
+    beta.placeholder = "Choose beta...";
+    beta.type = "number";
+    beta.min = "0";
+    beta.style.display = "none";
+
+    var addCaseAttributes = document.createElement("button");
+    addCaseAttributes.className = "button button1";
+    addCaseAttributes.id = "addCaseAttributes";
+    addCaseAttributes.textContent = "Add Case-Attribute!";
+    addCaseAttributes.disabled = true;
+    addCaseAttributes.addEventListener("click", (e:Event) => this.addAttributes());
+
+    var caseTabContent = document.createElement("div");
+    caseTabContent.id = "caseTabContent";
+    caseTabContent.style.display = "block";
+
+    var eventTabContent = document.createElement("div");
+    eventTabContent.id = "eventTabContent";
+    eventTabContent.style.display = "none";
+
+    var eventHeader = document.createElement("p");
+    eventHeader.id = "eventHeader";
+    eventHeader.style.marginLeft = "1px";
+    eventHeader.textContent = "Select the transition to be linked:";
+
+    var transList = document.createElement("ul");
+    transList.id = "transList";
+    transList.style.columns = "2";
+
+    var addEventAttributes = document.createElement("button");
+    addEventAttributes.className = "button button1";
+    addEventAttributes.id = "addEventAttributes";
+    addEventAttributes.textContent = "Add Event-Attribute!";
+    addEventAttributes.disabled = true;
+    addEventAttributes.addEventListener("click", (e:Event) => this.addAttributes());
+
+    var eventAttrsList = document.createElement('ul');
+    eventAttrsList.id = "eventAttrsList";
+
+    caseTabContent.append( addCaseAttributes, caseAttrsList);
+    eventTabContent.append(eventHeader, transList, addEventAttributes, eventAttrsList);
+    attrPopupContent.append(tabBar, attrName, div0, staticValue, div1, mue, sigma, div2, n, p, 
+                            div3, k, theta, div4, beta, caseTabContent, eventTabContent)
+    attrPopup.append(attrPopupContent);
+
     // UPLOAD-POPUP
     var uploadPopup = document.createElement("div");
     uploadPopup.id = "uploadPopup";
@@ -401,6 +604,7 @@ export class PetriView extends DOMWidgetView {
 
     var label = document.createElement("label");
     label.htmlFor = "fileInput";
+    label.className = "uploadLabel"
     label.textContent = "Select a JSON-File...";
 
     var uploadJSON = document.createElement("button");
@@ -409,9 +613,7 @@ export class PetriView extends DOMWidgetView {
     uploadJSON.textContent = "Import Graph!";
     uploadJSON.addEventListener("click", (e:Event) => PetriView.importJSON());
 
-    uploadPopupContent.appendChild(label);
-    uploadPopupContent.appendChild(fileInput);
-    uploadPopupContent.appendChild(uploadJSON);
+    uploadPopupContent.append(label, fileInput, uploadJSON);
     uploadPopup.appendChild(uploadPopupContent);
 
     // LINK-POPUP
@@ -438,8 +640,7 @@ export class PetriView extends DOMWidgetView {
     var linkPopupContent = document.createElement("div");
     linkPopupContent.className = "popup-content";
 
-    linkPopupContent.appendChild(linkInput);
-    linkPopupContent.appendChild(changeProb);
+    linkPopupContent.append(linkInput, changeProb);
     linkPopup.appendChild(linkPopupContent);
 
     // LABEL-POPUP
@@ -448,8 +649,8 @@ export class PetriView extends DOMWidgetView {
     popup.className = "popup";
     popup.style.display = "none";
 
-    var p = document.createElement("p");
-    p.textContent = "Label:";
+    var headerText = document.createElement("p");
+    headerText.textContent = "Label:";
 
     var input = document.createElement("input");
     input.placeholder = "Enter label...";
@@ -462,14 +663,25 @@ export class PetriView extends DOMWidgetView {
     changeLabel.className = "button button1";
     changeLabel.addEventListener("click", (e:Event) => PetriView.saveChanges());
     changeLabel.disabled = true;
-    changeLabel.textContent = "Save Label!";
+    changeLabel.textContent = "Save!";
+
+    var headerText1 = document.createElement("p");
+    headerText1.id = "timeLabel";
+    headerText1.textContent = "Duration in seconds:";
+    headerText1.style.display = "none";
+
+    var addTime = document.createElement("input");
+    addTime.placeholder = "In seconds...";
+    addTime.id = "timeInput";
+    addTime.type = "number";
+    addTime.min = "1";
+    addTime.defaultValue = "1";
+    addTime.style.display = "none";
     
     var popupContent = document.createElement("div");
     popupContent.className = "popup-content";
 
-    popupContent.appendChild(p);
-    popupContent.appendChild(input);
-    popupContent.appendChild(changeLabel);
+    popupContent.append(headerText, input, headerText1, addTime, changeLabel);
     popup.appendChild(popupContent);
 
     // CONDITION-POPUP
@@ -490,14 +702,12 @@ export class PetriView extends DOMWidgetView {
     addConditions.id = "addConditions";
     addConditions.className = "button button1";
     addConditions.textContent = "Add Conditions!";
-    addConditions.addEventListener("click", (e:Event) => PetriView.saveConditions())
+    addConditions.addEventListener("click", (e:Event) => PetriView.saveConditions());
 
     var condPopupContent = document.createElement("div");
     condPopupContent.className = "popup-content";
 
-    condPopupContent.appendChild(description);
-    condPopupContent.appendChild(conditions);
-    condPopupContent.appendChild(addConditions);
+    condPopupContent.append(description, conditions, addConditions);
     condPopup.appendChild(condPopupContent);
 
     // SAVE-POPUP
@@ -522,53 +732,14 @@ export class PetriView extends DOMWidgetView {
     saveGraphAs.disabled = true;
     saveGraphAs.textContent = "Save Graph!";
 
-    savePopupContent.appendChild(saveInput);
-    savePopupContent.appendChild(saveGraphAs);
+    savePopupContent.append(saveInput, saveGraphAs);
     savePopup.appendChild(savePopupContent);
 
-    // ADD EVERYTHING TO NOTEBOOK HTML CODE (Maybe better use this.el.append(dropdown, addToken, ...))
-    this.el.appendChild(dropdown);
-    this.el.appendChild(saveGraph);
-    this.el.appendChild(importJSON);
-    this.el.appendChild(saveIMG);
-    this.el.appendChild(downloadJSON);
-    this.el.appendChild(zoomIn);
-    this.el.appendChild(zoomOut);
-    this.el.appendChild(addPlace);
-    this.el.appendChild(addTrans);
-    this.el.appendChild(addToken);
-    this.el.appendChild(removeToken);
-    this.el.appendChild(removeCell);
-    this.el.appendChild(clearAll);
-    this.el.appendChild(lockModel);
-    this.el.appendChild(simulate);
-    this.el.appendChild(stopSimulation);
-    this.el.appendChild(reloadSim);
-
-
-    // this.el.appendChild(dropdown);
-    // this.el.appendChild(addToken);
-    // this.el.appendChild(removeToken);
-    // this.el.appendChild(addPlace);
-    // this.el.appendChild(addTrans);
-    // this.el.appendChild(removeCell);
-    // this.el.appendChild(clearAll);
-    // this.el.appendChild(simulate);
-    // this.el.appendChild(stopSimulation);
-    // this.el.appendChild(lockModel);
-    // this.el.appendChild(reloadSim);
-    // this.el.appendChild(saveGraph);
-    // this.el.appendChild(saveIMG);
-    // this.el.appendChild(importJSON);
-    // this.el.appendChild(downloadJSON);
-    // this.el.appendChild(zoomIn);
-    // this.el.appendChild(zoomOut);
-
-    this.el.appendChild(popup);
-    this.el.appendChild(linkPopup);
-    this.el.appendChild(savePopup);
-    this.el.appendChild(uploadPopup);
-    this.el.appendChild(condPopup);
+    // ADD EVERYTHING TO NOTEBOOK HTML CODE
+    this.el.append(dropdown, saveGraph, importJSON, saveIMG, downloadJSON, zoomIn, zoomOut, addPlace,
+                   addTrans, addToken, removeToken, removeCell, clearAll, lockModel, simulate, 
+                   stopSimulation, reloadSim, addAttrs);
+    this.el.append(popup, linkPopup, savePopup, uploadPopup, condPopup, attrPopup);
 
     // Init paper, give it the respective ID, restrict its elements moving area and append it
     this.initWidget();
@@ -576,7 +747,7 @@ export class PetriView extends DOMWidgetView {
     PetriView.paper.options.restrictTranslate = function(cellView) { return cellView.paper!.getArea(); }
     this.el.appendChild(PetriView.paper.el);
 
-    // if clicked outside of any popup-form, do not display it anymore (under conditions)
+    // If clicked outside of any popup-form, do not display it anymore (under conditions)
     window.onclick = function(event: MouseEvent) {
       if (PetriView.selectedCell) {
         if ((event.target! as Element).className === "popup" && (PetriView.selectedCell.attributes.type != "customTransition" ||
@@ -710,6 +881,10 @@ export class PetriView extends DOMWidgetView {
                         useModelGeometry: true,
                         x: x,
                         y: y,
+                        action: function(evt) {
+                          elementView.model.remove({ ui: true });
+                          PetriView.updateTransList();
+                        },
                         }),
                     ],
                 })
@@ -727,8 +902,17 @@ export class PetriView extends DOMWidgetView {
       'cell:pointerdblclick': function() {
         if (PetriView.selectedCell.attributes.type == "pn.Link") {
           PetriView.showPopup("linkPopup");
-        } else if (PetriView.selectedCell.attributes.type == "pn.Place" || 
-                  (PetriView.selectedCell.attributes.type == "customTransition" && PetriView.selectedCell.attributes.attrs["body"]["text"] != "")) {
+
+        } else if (PetriView.selectedCell.attributes.type == "pn.Place") {
+          document.getElementById("timeLabel")!.style.display = "none";
+          document.getElementById("timeInput")!.style.display = "none";
+          $("#changelabel").prop("disabled", false);
+          PetriView.showPopup("popup");
+
+        } else if (PetriView.selectedCell.attributes.type == "customTransition" && PetriView.selectedCell.attributes.attrs["body"]["text"] != "") {
+          document.getElementById("timeLabel")!.style.display = "flex";
+          document.getElementById("timeInput")!.style.display = "flex";
+          (<HTMLInputElement> document.getElementById("timeInput")!).value = PetriView.selectedCell.attributes.exectime;
           $("#changelabel").prop("disabled", false);
           PetriView.showPopup("popup"); 
         }
@@ -743,6 +927,12 @@ export class PetriView extends DOMWidgetView {
 
       'element:port:add': function(elementView: joint.dia.ElementView, evt: joint.dia.Event): void {
         evt.stopPropagation();
+        if (PetriView.selectedCell) {
+          if (PetriView.selectedCell.attributes.type == "pn.Place") {
+            PetriView.selectedCell.attr({".root": { "stroke": "#7c68fc" }});
+          } else { PetriView.selectedCell.attr({"body": { "stroke": "#7c68fc" }}); }
+        }
+
         PetriView.selectedCell = elementView.model;
 
         if (elementView.model.attributes.attrs!["portAddButton"]!["fill"] != "lightgray") {
@@ -764,6 +954,7 @@ export class PetriView extends DOMWidgetView {
     PetriView.gridSize = 1;
     PetriView.selectedCell = null as any;
     PetriView.backupTokens = null as any;
+    PetriView.caseAttrs = new Array;
     this.simulationId = 0;
     this.width = jQuery('#paper').width;
     this.height = jQuery('#paper').height;
@@ -776,7 +967,6 @@ export class PetriView extends DOMWidgetView {
       defaultAnchor: { name: 'perpendicular' },
       defaultConnectionPoint: { name: 'boundary' },
       model: PetriView.graph,
-      // background: {color: 'lightgray'},
       cellViewNamespace: namespace,                   // crucial for the tokens to get rendered when jointjs is loaded as a module !!!
       linkPinning: false,                             // prevent dangling links
       snapLabels: true,                               // make link-labels movable along the link
@@ -815,14 +1005,22 @@ export class PetriView extends DOMWidgetView {
         var id = cell.id;
         var name = cell.attributes.attrs["label"]["text"];
         var type = "Transition";
-        var conditions : String[] = [];
+        var exectime = cell.attributes.exectime;
+        var conditions: String[] = [];
         cell.attributes.ports.items.forEach(function(item: any) {
           conditions.push(item["attrs"]["portLabel"]["text"]);
         });
-        res.push({type, id, name, conditions});
+        var eventattrs: any = [];
+        PetriView.eventAttrs.forEach(function(item) {
+          var event = item.replace(": ", "=").split(" -> ");
+          if (event[0] == name) { eventattrs.push(event[1]) }
+        });
+        res.push({type, id, name, exectime, conditions, eventattrs});
       }
     });
 
+    PetriView.updateTransList();
+    this.model.set("caseAttrs", PetriView.caseAttrs);
     this.model.set("graph", res);
     this.model.save_changes();
   }
@@ -944,6 +1142,7 @@ export class PetriView extends DOMWidgetView {
       PetriView.link(cAccepted, tConsume), PetriView.link(tConsume, cReady), PetriView.link(cReady, tAccept)
     ]);
 
+    this.updateGraph();
     PetriView.backupTokens = PetriView.getTokenlist(PetriView.graph.getCells())
   }
 
@@ -1037,6 +1236,7 @@ export class PetriView extends DOMWidgetView {
       PetriView.link(tB2, pB1), PetriView.link(pB1, tB1)
     ]);
 
+    this.updateGraph();
     PetriView.backupTokens = PetriView.getTokenlist(PetriView.graph.getCells())
   }
 
@@ -1116,9 +1316,10 @@ export class PetriView extends DOMWidgetView {
 
   private static showPopup(id: string) {
     document.getElementById(id)!.style.display = "flex";
+
+    // set focus to first input-field in popup
     var inputField = document.getElementById(id)?.getElementsByTagName("input")[0]!;
     document.getElementById(inputField.id)!.focus();
-    // (document.getElementById(inputField.id)! as HTMLFormElement).scrollIntoView({behavior: "smooth", block: "center"});
 
     // Set value of labelPopup-Input based on selected Link
     // slice creates a copy of last element --> so actually "labels" is not changed by "pop()"
@@ -1157,20 +1358,6 @@ export class PetriView extends DOMWidgetView {
         y: 30
       }
     });
-    // PetriView.selectedCell = new joint.shapes.pn.Transition(
-    //   {
-    //     attrs: 
-    //     {
-    //       '.label': {'text': '', 'fill': '#fe854f'},
-    //       '.root': {'fill': '#9586fd', 'stroke': '#7c68fc'},
-    //       'rect': { width: 30, height: 40, fill: '#000000', stroke: '#000000', "stroke-width": 3 },
-    //     },
-    //     size: { width: 30, height: 40 },
-    //     conditions: [],
-    //     position: { x: 80, y: 25 }
-    //   }
-    // );
-    
     PetriView.graph.addCell(PetriView.selectedCell);
     PetriView.showPopup("popup");
   }
@@ -1178,6 +1365,7 @@ export class PetriView extends DOMWidgetView {
   private removeCell() {
     try {
       PetriView.graph.removeCells(PetriView.selectedCell);
+      PetriView.updateTransList();
     } catch(e) {
       return "Nothing selected! Please select a place or transition before removing."
     }
@@ -1187,6 +1375,7 @@ export class PetriView extends DOMWidgetView {
     PetriView.paper.translate(0, 0);
     PetriView.paper.scale(1, 1, 0, 0);
     PetriView.graph.clear();
+    PetriView.updateTransList();
   }
 
   private simulate() {
@@ -1395,6 +1584,9 @@ export class PetriView extends DOMWidgetView {
     document.getElementById("popup")!.style.display = "none";
     var newLabel = (<HTMLInputElement> document.getElementById("input"))!.value;
 
+    if (PetriView.selectedCell.attributes.type == "customTransition") {
+      PetriView.selectedCell.attributes.exectime = (<HTMLInputElement> document.getElementById("timeInput")!).value
+    }
     if (newLabel != "") {
       (PetriView.selectedCell.attributes.type == "pn.Place") ? PetriView.selectedCell.attr('.label/text', newLabel) 
       : PetriView.selectedCell.attr('label/text', newLabel);
@@ -1413,6 +1605,214 @@ export class PetriView extends DOMWidgetView {
 
     input.value = "";
     PetriView.selectedCell = null;
+  }
+
+  // TODO: Maybe only use the string as internal representation and write "Normal Distribution (16, 0.5) for example"
+  // TODO: Maybe add int() around the value strings, i.e. int(np.random.normal(loc=..., scale=...))
+  // TODO: Wenn clear oder transition removed wird, entsprechende event-attribute loeschen!
+  private addAttributes() {
+    var attr = $("#attrName").val();
+    var checked = $("input[name='dist']:checked").prop("id");
+    var eventList = PetriView.eventAttrs;
+    var caseList = PetriView.caseAttrs;
+    var activeTab = document.getElementsByClassName("tablinks active")[0].id;
+    var isEvtTab = activeTab=="eventTab";
+    if (isEvtTab) {
+      var trans = document.getElementsByClassName("transListEl active")[0].getElementsByTagName("li")[0].innerHTML;
+    }
+
+    if (checked=="staticAttr") {
+      var staticVal = $("#staticVal").val();
+      (staticVal == "")? staticVal="10": staticVal;
+      var str = `${attr}: ${staticVal}`;
+    } else if (checked=="normalDist") {
+      var mue = $("#mue").val();
+      var sigma = $("#sigma").val();
+      (mue == "")? mue="1": mue;
+      (sigma == "")? sigma="0.5": sigma;
+      var str = `${attr}: np.random.normal(loc=${mue}, scale=${sigma})`;
+    } else if (checked=="bernDist") {
+      var n = $("#n").val();
+      var p = $("#p").val();
+      (n == "")? n="1": n;
+      (p == "")? p="0.5": p;
+      var str = `${attr}: random.binomial(n=${n}, p=${p})`;
+    } else if (checked=="gammaDist") {
+      var k = $("#k").val();
+      var theta = $("#theta").val();
+      (k == "")? k="9": k;
+      (theta == "")? theta="0.5": theta;
+      var str = `${attr}: random.gamma(shape=${k}, scale=${theta})`;
+    } else if (checked=="expoDist") {
+      var beta = $("#beta").val();
+      (beta == "")? beta="3": beta;
+      var str = `${attr}: random.exponential(scale=${beta})`;
+    }
+
+    (isEvtTab)? eventList.push(trans! + " -> " + str!): caseList.push(str!);
+    (isEvtTab)? PetriView.updateAttrsFrontend("eventAttrsList"): PetriView.updateAttrsFrontend("caseAttrsList");
+    this.updateGraph();
+    this.resetDistForms();
+  }
+
+  private toggleFields(id: String) {
+    $('#staticVal, #mue, #sigma, #n, #p, #k, #theta, #beta').css("display", "none");
+    this.enableAttributeButtons();
+
+    if (id == "staticAttr") {
+      $("#staticVal").css("display", "flex");
+    } else if (id == "normalDist") {
+      $("#mue").css("display", "flex");
+      $("#sigma").css("display", "flex");
+    } else if (id == "bernDist") {
+      $("#n").css("display", "flex");
+      $("#p").css("display", "flex");
+    } else if (id == "gammaDist") {
+      $("#k").css("display", "flex");
+      $("#theta").css("display", "flex");
+    } else if (id == "expoDist") {
+      $("#beta").css("display", "flex");
+    }
+  }
+
+  private enableAttributeButtons() {
+    var radioChecked = $("input[name='dist']:checked").prop("id");
+
+    // Do if EventTab is active
+    if ($("#eventTab").prop("className") == "tablinks active") {
+      var checkTrans = document.getElementsByClassName("transListEl active").length > 0
+      if (checkTrans && radioChecked && $("#attrName").prop("value")) {
+        $("#addEventAttributes").prop("disabled", false);
+      } else {
+        $("#addEventAttributes").prop("disabled", true);
+      }
+    // Do if CaseTab is active
+    } else {
+      if (radioChecked && $("#attrName").prop("value")) {
+        $("#addCaseAttributes").prop("disabled", false);
+      } else {
+        $("#addCaseAttributes").prop("disabled", true);
+      }
+    }
+  }
+
+  private static updateAttrsFrontend(id: string) {
+    var list = [];
+    $(`#${id}`).empty();
+    (id=="caseAttrsList")? list=PetriView.caseAttrs: list=PetriView.eventAttrs;
+
+    list.forEach(function (item: any) {
+      var listEl = document.createElement("div");
+      listEl.style.display = "flex";
+
+      let li = document.createElement('li');
+      li.innerHTML = item;
+
+      var dismissButton = document.createElement("button");
+      dismissButton.className = "dismissbutton";
+      dismissButton.innerHTML = "<i class='fa fa-times-circle'></i>";
+      dismissButton.addEventListener("click", (e:Event) => PetriView.deleteListEl(id, item));
+
+      listEl.append(dismissButton, li);
+      document.getElementById(id)!.appendChild(listEl);
+    });
+  }
+
+  private static deleteListEl(id: string, content: any) {
+    if (id=="caseAttrsList") {
+      PetriView.caseAttrs.forEach(function(el: string, index: any) {
+        if (content == el) {
+          PetriView.caseAttrs.splice(index, 1);
+          PetriView.updateAttrsFrontend(id);
+        }
+      });
+    } else {
+      PetriView.eventAttrs.forEach(function(el: string, index: any) {
+        if (content == el) {
+          PetriView.eventAttrs.splice(index, 1);
+          PetriView.updateAttrsFrontend(id);
+        }
+      });
+    }
+
+  }
+
+  private resetDistForms() {
+    (<HTMLInputElement> document.getElementById("addCaseAttributes")).disabled = true;
+    (<HTMLInputElement> document.getElementById("addEventAttributes")).disabled = true;
+    $("#attrName").prop("value", "");
+    $("input[name=dist]").prop("checked", false);
+    $("#staticVal, #mue, #sigma, #n, #p, #k, #theta, #beta").css("display", "none");
+    $("#staticVal, #mue, #sigma, #n, #p, #k, #theta, #beta").prop("value", "");
+  }
+
+  private showTab(id: string) {
+    this.resetDistForms();
+    $("#caseTab, #eventTab").prop("className", "tablinks");
+    $("#caseTabContent, #eventTabContent").css("display", "none");
+
+    if (id=="eventTab") {
+      PetriView.updateTransList();
+      $("#eventTabContent").css("display", "block");
+      $("#eventTab").prop("className", "tablinks active");
+    } else if (id=="caseTab") {
+      $("#caseTabContent").css("display", "block");
+      $("#caseTab").prop("className", "tablinks active");
+    }
+  }
+
+  private static updateTransList() {
+    $("#transList").empty();
+    var transitions: any = [];
+
+    PetriView.graph.getCells().forEach(function(c) {
+      if (c.attributes.type == "customTransition") {
+        transitions.push(c.attributes.attrs!["label"]!["text"]);
+      }
+    });
+
+    transitions.forEach(function (trans: string) {
+      var listEl = document.createElement("div");
+      listEl.className = "transListEl";
+      listEl.style.display = "flex";
+
+      let li = document.createElement('li');
+      li.innerHTML = trans;
+
+      var addEventAttrButton = document.createElement("button");
+      addEventAttrButton.className = "dismissbutton";
+      addEventAttrButton.innerHTML = "<i class='fa fa-plus-circle'></i>";
+      addEventAttrButton.addEventListener("click", (e:Event) => PetriView.selectTrans(listEl));
+
+      listEl.append(addEventAttrButton, li);
+      document.getElementById("transList")!.appendChild(listEl);
+    });
+
+    if (document.getElementById("transList")!.innerHTML.trim() == "") {
+      document.getElementById("eventHeader")!.textContent = "Currently there are no transitions available."
+    } else {
+      document.getElementById("eventHeader")!.textContent = "Select the transition to be linked:"
+    }
+  }
+
+  private static selectTrans(div: any) {
+    if (div.style.backgroundColor == "rgb(220, 220, 220)") {
+      div.style.backgroundColor = "white";
+      div.className = "transListEl";
+    } else {
+      $(".transListEl").css("backgroundColor", "white");
+      div.style.backgroundColor = "#DCDCDC";
+      div.className = "transListEl active";
+    }
+
+    // check if button should be enabled
+    var checkTrans = document.getElementsByClassName("transListEl active").length > 0;
+    var checkRadio = $("input[name='dist']:checked").prop("id");
+    if (checkTrans && $("#attrName").val() != "" && checkRadio) {
+      $("#addEventAttributes").prop("disabled", false);
+    } else {
+      $("#addEventAttributes").prop("disabled", true);
+    }
   }
 
   private static changeProb() {

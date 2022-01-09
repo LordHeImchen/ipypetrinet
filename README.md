@@ -4,11 +4,9 @@
 [![Build Status](https://travis-ci.org/DFKI/ipypetrinet.svg?branch=master)](https://travis-ci.org/DFKI/ipypetrinet)
 [![codecov](https://codecov.io/gh/DFKI/ipypetrinet/branch/master/graph/badge.svg)](https://codecov.io/gh/DFKI/ipypetrinet)
 
-
 A custom petrinet widget.
 
 ## Installation
-
 You can install using `pip`:
 
 ```bash
@@ -21,8 +19,30 @@ the nbextension:
 jupyter nbextension enable --py [--sys-prefix|--user|--system] ipypetrinet
 ```
 
-## Development Installation
+If the widget is not displayed, make sure you have ipywidget and notebook installed with the latest version.
 
+## Usage
+Cells can be added to the canvas by using the buttons above the canvas. The functionality of each button is briefly described below. To connect two cells via a link, you need to click and hold `alt-key` and then drag the source-cell to the destination-cell. You can only add links between places and transitions. Note that you can give labels to places and transitions and probabilities to links. By double-clicking a cell or a link you can modify the label or probability respectively. Transitions can be enriched with custom conditions. Please also note that the canvas can be resized by dragging the lower-right corner down.
+
+- `Graphs` will show a dropdown of two example graphs, which can be selected to play around with.
+- `Save Graph` will save the currently displayed graph in the `Graphs` dropdown. (CAUTION: It will only be stored temporarily in the local storage of the browser)
+- Import JSON` allows you to import a JSON-file as a graph to be displayed in the widget. (Is currently only displayed if it has the jointjs-graph syntax)
+- `Download SVG` allows you to download the current graph as SVG.
+- `Download JSON` allows you to download the current graph as JSON-file, which may be imported in another session to resume working.
+- `Zoom in` and `Zoom out` will enlarge or shrink the graph.
+- `+ Place` will add a new place to the canvas.
+- `+ Transition` will add a new transition to the canvas. Please keep in mind that transitions always need a label. Within the transitions, conditions can be added using the `+` button.
+- `+` will add a token to a previously selected place. You can select places or transitions by simply left-clicking on them. Note that transitions cannot contain any tokens.
+- `-` will subtract a token of a previously selected place. Note that a place cannot contain a negative number of tokens.
+- `Remove` will delete a previously (the currently) selected cell and all adjacent links.
+- `Clear` will delete the whole graph off the canvas. You can now start over with a fresh canvas. (CAUTION: at this point in time this cannot be revoked)
+- `Lock` will freeze the whole model, so cells can be moved around or deleted anymore. However, you can still rename things by double-clicking them.
+- `Play` will simulate the Petri net. Please mind that this simulation-mode doesn't take any conditions or probabilities into account.
+- `Stop` will stop the current simulation. (CAUTION: clicking `Play` twice without clicking `Stop` in between will cause undefined behavior.)
+- `Reset` will reset the model to the state it had the last time a token was added or removed.
+- `+ Attributes` will open a popup which allows you to add and delete both case- and event-attributes. A few options for the dynamic generation of variables are already supported (normal-, binomial-, gamma- and exponential-distribution). Please note, that you have to choose a certain transition to be extended by the respective event-attribute. For eventlog-simulation this means that the case-attributes will be computed dynamically per case, while the event-attributes will be dynamically calculated per transition-execution.
+
+## Development Installation
 Create a dev environment:
 ```bash
 conda create -n ipypetrinet-dev -c conda-forge nodejs yarn python jupyterlab

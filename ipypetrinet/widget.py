@@ -9,7 +9,7 @@ TODO: Add module docstring
 """
 
 from ipywidgets import DOMWidget, ValueWidget, register
-from traitlets import Unicode, Bool, validate, TraitError, List
+from traitlets import Unicode, Bool, validate, TraitError, List, Dict
 from ._frontend import module_name, module_version
 
 # from pm4py.objects.petri_net.obj import PetriNet, Marking
@@ -30,6 +30,8 @@ class PetriWidget(DOMWidget):
     _view_module = Unicode(module_name).tag(sync=True)
     _view_module_version = Unicode(module_version).tag(sync=True)
     graph = List().tag(sync=True)
+    caseAttrs = List().tag(sync=True)
+    eventAttrs = List().tag(sync=True)
 
     # Methods to simulate an eventlog
     # def generate_eventlog(self, cells, name="PetriNet", n=10):

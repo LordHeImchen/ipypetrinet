@@ -73,10 +73,10 @@ setup_args = dict(
     packages        = find_packages(),
     author          = 'Jakob Bucksch',
     author_email    = 'jakob.bucksch@dfki.de',
-    url             = 'https://github.com/DFKI/ipypetrinet',
+    url             = 'https://gitlab-iwi.dfki.de/Bucksch/ipypetrinet',
     license         = 'BSD',
     platforms       = "Linux, Mac OS X, Windows",
-    keywords        = ['Jupyter', 'Widgets', 'IPython'],
+    keywords        = ['Jupyter', 'Widgets', 'Python', 'Petri Net', 'Python', 'Simulation', 'Event log'],
     classifiers     = [
         'Intended Audience :: Developers',
         'Intended Audience :: Science/Research',

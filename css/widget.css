@@ -6,10 +6,6 @@ Important note: Presentation attributes have a lower precedence over CSS style r
 */
 
 /* Own CSS-Styles by me */
-/* g#j_2.joint-cell.joint-type-pn.joint-type-pn-place.joint-element.joint-theme-default:hover {
-  outline-color: red;
-  border: red;
-} */
 
 /* Style everything button related */
 .button {
@@ -26,10 +22,6 @@ Important note: Presentation attributes have a lower precedence over CSS style r
 }
 .button1 {background-color: #7c68fc;}
 .button2 {background-color: #303030;}
-/* .button1 {background-color: green;}
-.button2 {background-color: deepskyblue;}
-.button3 {background-color: red;}
-.button4 {background-color: orange;} */
 
 /* On click button styling */
 .button:active {
@@ -45,13 +37,43 @@ Important note: Presentation attributes have a lower precedence over CSS style r
   opacity: 0.4;
 }
 
+.dismissbutton {
+  border: none;
+  font-size: 20px;
+  color: #7c68fc;
+  background-color: inherit;
+  cursor: pointer;
+}
+
+.tab button {
+  background-color: whitesmoke;
+  float: left;
+  border: 1px solid black;
+  color: black;
+  outline: none;
+  cursor: pointer;
+  margin-right: 2px;
+  margin-bottom: 10px;
+}
+
+.tab button:hover { background-color: darkgray; }
+.tab button.active { background-color: darkgray; }
+
+/* Hide bullet points in list */
+ul, li {
+  align-items: center;
+  list-style-type: none;
+  padding: 0;
+  padding-top: 2px;
+}
+
 /* Style input field */
 input {
   padding: 15px;
   width: 100%;
   margin: 8px 0;
   box-sizing: border-box;
-  box-shadow:0 0 15px 4px rgba(0,0,0,0.06);
+  box-shadow: 0 0 15px 4px rgba(0,0,0,0.06);
 }
 
 input:focus {
@@ -59,14 +81,23 @@ input:focus {
   border: 2px solid #555;
 }
 
-label {
+input[type=radio],
+input.radio {
+  padding: 0px;
+  margin: 4px;
+  /* clear: none; */
+  /* box-sizing: auto; */
+  width: auto;
+}
+
+.uploadLabel {
   padding: 15px;
   background-color: whitesmoke;
   border: 1px solid gray;
   color: black;
 }
 
-label:hover {
+.uploadLabel:hover {
   border: 1px solid black;
   cursor: pointer;
 }
@@ -97,6 +128,10 @@ label:hover {
   border: 2px solid #888;
   border-radius: 4px;
   width: 25%;
+}
+
+.attributes {
+  width: 50%;
 }
 
 /* The container <div> - needed to position the dropdown content */
