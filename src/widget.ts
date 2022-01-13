@@ -176,6 +176,7 @@ class customTransition extends joint.shapes.pn.Transition {
       type: "customTransition",
       size: { width: LIST_ITEM_WIDTH + 4, height: 0 },
       exectime: "1",
+      eventAttrs: [],
       ports: {
         groups: {
           [LIST_GROUP_NAME]: {
@@ -249,8 +250,7 @@ export class PetriModel extends DOMWidgetModel {
       _view_module: PetriModel.view_module,
       _view_module_version: PetriModel.view_module_version,
       graph: [],
-      caseAttrs: new Array,
-      eventAttrs: new Array,
+      caseAttrs: [],
     };
   }
 
@@ -274,7 +274,7 @@ export class PetriView extends DOMWidgetView {
   static paper: joint.dia.Paper;
   static backupTokens: any;
   static dragStartPosition: any;
-  static caseAttrs: Array<string>;
+  static caseAttrs: Array<string> = [];
   static eventAttrs: Array<string> = [];
   simulationId: any;
   width: any;
@@ -406,13 +406,13 @@ export class PetriView extends DOMWidgetView {
     caseTab.id = "caseTab";
     caseTab.className = "tablinks active";
     caseTab.textContent = "Add Case-Attributes";
-    caseTab.addEventListener("click", (e:Event) => this.showTab(caseTab.id));
+    caseTab.addEventListener("click", (e:Event) => PetriView.showTab(caseTab.id));
 
     var eventTab = document.createElement("button");
     eventTab.id = "eventTab";
     eventTab.className = "tablinks";
     eventTab.textContent = "Add Event-Attributes";
-    eventTab.addEventListener("click", (e:Event) => this.showTab(eventTab.id));
+    eventTab.addEventListener("click", (e:Event) => PetriView.showTab(eventTab.id));
 
     var tabBar = document.createElement("div");
     tabBar.id = "tabBar";
@@ -422,6 +422,9 @@ export class PetriView extends DOMWidgetView {
 
     var caseAttrsList = document.createElement('ul');
     caseAttrsList.id = "caseAttrsList";
+
+    var observer = new MutationObserver(() => this.updateCaseAttrs());
+    observer.observe(caseAttrsList, {childList: true});
 
     var attrName = document.createElement("input");
     attrName.id = "attrName";
@@ -579,7 +582,7 @@ export class PetriView extends DOMWidgetView {
     var eventAttrsList = document.createElement('ul');
     eventAttrsList.id = "eventAttrsList";
 
-    caseTabContent.append( addCaseAttributes, caseAttrsList);
+    caseTabContent.append(addCaseAttributes, caseAttrsList);
     eventTabContent.append(eventHeader, transList, addEventAttributes, eventAttrsList);
     attrPopupContent.append(tabBar, attrName, div0, staticValue, div1, mue, sigma, div2, n, p, 
                             div3, k, theta, div4, beta, caseTabContent, eventTabContent)
@@ -751,7 +754,7 @@ export class PetriView extends DOMWidgetView {
     window.onclick = function(event: MouseEvent) {
       if (PetriView.selectedCell) {
         if ((event.target! as Element).className === "popup" && (PetriView.selectedCell.attributes.type != "customTransition" ||
-            PetriView.selectedCell.attributes.attrs["body"]["text"] != "")) {
+            PetriView.selectedCell.attributes.attrs["label"]["text"] != "")) {
               (event.target! as HTMLDivElement).style.display = "none";
               $("#changelabel").prop("disabled", true);
               PetriView.selectedCell = null;
@@ -882,6 +885,11 @@ export class PetriView extends DOMWidgetView {
                         x: x,
                         y: y,
                         action: function(evt) {
+                          if (elementView.model.attributes.type == "customTransition") {
+                            var transName = elementView.model.attributes.attrs!["label"]!["text"];
+                            PetriView.eventAttrs = PetriView.eventAttrs.filter(attr => attr.split(" -> ")[0] !== transName);
+                            PetriView.updateAttrsFrontend("eventAttrsList");
+                          }
                           elementView.model.remove({ ui: true });
                           PetriView.updateTransList();
                         },
@@ -954,7 +962,6 @@ export class PetriView extends DOMWidgetView {
     PetriView.gridSize = 1;
     PetriView.selectedCell = null as any;
     PetriView.backupTokens = null as any;
-    PetriView.caseAttrs = new Array;
     this.simulationId = 0;
     this.width = jQuery('#paper').width;
     this.height = jQuery('#paper').height;
@@ -982,11 +989,17 @@ export class PetriView extends DOMWidgetView {
     });
   }
 
+  private updateCaseAttrs() {
+    this.model.set("caseAttrs", PetriView.caseAttrs);
+    this.model.save_changes();
+    this.model.sync("update", this.model);
+  }
+
   private updateGraph() {
     var allCells = PetriView.graph.getCells();
     allCells.concat(PetriView.graph.getLinks());
-
     var res: any[] = []
+
     allCells.forEach(function(cell: any) {
       if (cell.attributes.type == "pn.Place") {
         var id = cell.attributes.id;
@@ -1006,21 +1019,16 @@ export class PetriView extends DOMWidgetView {
         var name = cell.attributes.attrs["label"]["text"];
         var type = "Transition";
         var exectime = cell.attributes.exectime;
+        var eventattrs = cell.attributes.eventAttrs;
         var conditions: String[] = [];
         cell.attributes.ports.items.forEach(function(item: any) {
           conditions.push(item["attrs"]["portLabel"]["text"]);
-        });
-        var eventattrs: any = [];
-        PetriView.eventAttrs.forEach(function(item) {
-          var event = item.replace(": ", "=").split(" -> ");
-          if (event[0] == name) { eventattrs.push(event[1]) }
         });
         res.push({type, id, name, exectime, conditions, eventattrs});
       }
     });
 
     PetriView.updateTransList();
-    this.model.set("caseAttrs", PetriView.caseAttrs);
     this.model.set("graph", res);
     this.model.save_changes();
   }
@@ -1349,9 +1357,16 @@ export class PetriView extends DOMWidgetView {
       position: { x: 20, y: 25 }
     }));
     PetriView.backupTokens = PetriView.getTokenlist(PetriView.graph.getCells())
+    this.updateGraph();
   }
 
   private addTrans() {
+    if (PetriView.selectedCell) {
+      if (PetriView.selectedCell.attributes.type == "pn.Place") {
+        PetriView.selectedCell.attr({".root": { "stroke": "#7c68fc" }});
+      } else { PetriView.selectedCell.attr({"body": { "stroke": "#7c68fc" }}); }
+    }
+    
     PetriView.selectedCell = new customTransition({
       position: { 
         x: 20,
@@ -1360,22 +1375,37 @@ export class PetriView extends DOMWidgetView {
     });
     PetriView.graph.addCell(PetriView.selectedCell);
     PetriView.showPopup("popup");
+    this.updateGraph();
+
   }
 
   private removeCell() {
     try {
+      // Remove all Event-Attributes of the respective Transition
+      if (PetriView.selectedCell.attributes.type == "customTransition") {
+        var transName = PetriView.selectedCell.model.attributes.attrs!["label"]!["text"];
+        PetriView.eventAttrs = PetriView.eventAttrs.filter(attr => attr.split(" -> ")[0] !== transName);
+        PetriView.updateAttrsFrontend("eventAttrsList");
+      }
       PetriView.graph.removeCells(PetriView.selectedCell);
       PetriView.updateTransList();
+
     } catch(e) {
       return "Nothing selected! Please select a place or transition before removing."
     }
   }
 
   private clearAll() {
+    // Reset Zoom and empty Graph
     PetriView.paper.translate(0, 0);
     PetriView.paper.scale(1, 1, 0, 0);
     PetriView.graph.clear();
     PetriView.updateTransList();
+    this.updateGraph();
+
+    // Delete all Event-Attributes!
+    $("#eventAttrsList").empty();
+    PetriView.eventAttrs = [];
   }
 
   private simulate() {
@@ -1502,6 +1532,9 @@ export class PetriView extends DOMWidgetView {
   private static importJSON() {
     PetriView.paper.translate(0, 0);
     PetriView.paper.scale(1, 1, 0, 0);
+    PetriView.showTab("caseTab");
+    PetriView.eventAttrs = [];
+    PetriView.updateAttrsFrontend("caseAttrsList");
 
     document.getElementById("uploadPopup")!.style.display = "none";
     var files = (<HTMLInputElement> document.getElementById("fileInput")).files!;
@@ -1512,8 +1545,24 @@ export class PetriView extends DOMWidgetView {
     var reader = new FileReader();
     reader.onload = function(e: any) { 
       var jsonstring = JSON.parse(e.target.result);
+      PetriView.caseAttrs = jsonstring["caseAttributes"]? jsonstring["caseAttributes"]: [];
+      PetriView.updateAttrsFrontend("caseAttrsList");
+
+      delete jsonstring["caseAttributes"];
       PetriView.graph.fromJSON(jsonstring);
       PetriView.backupTokens = PetriView.getTokenlist(PetriView.graph.getCells());
+
+      PetriView.graph.getCells().forEach(function(c) {
+        if (c.attributes.type == "customTransition") {
+          // Just to trigger PetriView.graph.on("change", ...)
+          c.attr({"body": { "stroke": "#7c68fc" }});
+
+          c.attributes.eventAttrs.forEach(function(event: string) {
+            PetriView.eventAttrs.push(c.attributes.attrs!["label"]!["text"] + " -> " + event);
+          });
+        }
+      });
+      PetriView.updateAttrsFrontend("eventAttrsList");
 
       var fileName = files[0]["name"].split(".")[0]; 
       localStorage.setItem(fileName, e.target.result);
@@ -1531,11 +1580,27 @@ export class PetriView extends DOMWidgetView {
   }
 
   private downloadJSON() {
-    console.log(PetriView.graph.toJSON());
-    const jsonstring = JSON.stringify(PetriView.graph.toJSON());
+    var jsonstring = JSON.stringify(PetriView.graph.toJSON());
+
     if (jsonstring == null) {
       console.log("There is no JSON file to be saved.");
     } else {
+      // Add Case-Attributes to String if not empty
+      if (PetriView.caseAttrs) {
+        var caseString = "";
+        caseString += ',"caseAttributes":[';
+        var i = 0;
+        PetriView.caseAttrs.forEach(function(attr) {
+          caseString += '"' + attr + '"';
+          if (i<PetriView.caseAttrs.length-1) {
+            caseString += ",";
+          } else {
+            caseString += "]"
+          }
+        });
+        jsonstring = jsonstring.substring(0, jsonstring.length-1) + caseString + "}";
+      }
+
       let blob = new Blob([jsonstring], {type: 'data:text/json;charset=utf-8'});
       let url = URL.createObjectURL(blob);
 
@@ -1607,16 +1672,10 @@ export class PetriView extends DOMWidgetView {
     PetriView.selectedCell = null;
   }
 
-  // TODO: Maybe only use the string as internal representation and write "Normal Distribution (16, 0.5) for example"
-  // TODO: Maybe add int() around the value strings, i.e. int(np.random.normal(loc=..., scale=...))
-  // TODO: Wenn clear oder transition removed wird, entsprechende event-attribute loeschen!
   private addAttributes() {
     var attr = $("#attrName").val();
     var checked = $("input[name='dist']:checked").prop("id");
-    var eventList = PetriView.eventAttrs;
-    var caseList = PetriView.caseAttrs;
-    var activeTab = document.getElementsByClassName("tablinks active")[0].id;
-    var isEvtTab = activeTab=="eventTab";
+    var isEvtTab = document.getElementsByClassName("tablinks active")[0].id=="eventTab";
     if (isEvtTab) {
       var trans = document.getElementsByClassName("transListEl active")[0].getElementsByTagName("li")[0].innerHTML;
     }
@@ -1636,23 +1695,30 @@ export class PetriView extends DOMWidgetView {
       var p = $("#p").val();
       (n == "")? n="1": n;
       (p == "")? p="0.5": p;
-      var str = `${attr}: random.binomial(n=${n}, p=${p})`;
+      var str = `${attr}: np.random.binomial(n=${n}, p=${p})`;
     } else if (checked=="gammaDist") {
       var k = $("#k").val();
       var theta = $("#theta").val();
       (k == "")? k="9": k;
       (theta == "")? theta="0.5": theta;
-      var str = `${attr}: random.gamma(shape=${k}, scale=${theta})`;
+      var str = `${attr}: np.random.gamma(shape=${k}, scale=${theta})`;
     } else if (checked=="expoDist") {
       var beta = $("#beta").val();
       (beta == "")? beta="3": beta;
-      var str = `${attr}: random.exponential(scale=${beta})`;
+      var str = `${attr}: np.random.exponential(scale=${beta})`;
     }
 
-    (isEvtTab)? eventList.push(trans! + " -> " + str!): caseList.push(str!);
-    (isEvtTab)? PetriView.updateAttrsFrontend("eventAttrsList"): PetriView.updateAttrsFrontend("caseAttrsList");
+    if (isEvtTab) {
+      PetriView.eventAttrs.push(trans! + " -> " + str!);
+      PetriView.updateGraphEventAttrs();
+      PetriView.updateAttrsFrontend("eventAttrsList");
+    } else {
+      PetriView.caseAttrs.push(str!);
+      PetriView.updateAttrsFrontend("caseAttrsList");
+    }
+
     this.updateGraph();
-    this.resetDistForms();
+    PetriView.resetDistForms();
   }
 
   private toggleFields(id: String) {
@@ -1723,21 +1789,32 @@ export class PetriView extends DOMWidgetView {
       PetriView.caseAttrs.forEach(function(el: string, index: any) {
         if (content == el) {
           PetriView.caseAttrs.splice(index, 1);
-          PetriView.updateAttrsFrontend(id);
         }
       });
     } else {
       PetriView.eventAttrs.forEach(function(el: string, index: any) {
         if (content == el) {
           PetriView.eventAttrs.splice(index, 1);
-          PetriView.updateAttrsFrontend(id);
         }
       });
+      PetriView.updateGraphEventAttrs();
     }
-
+    PetriView.updateAttrsFrontend(id);
   }
 
-  private resetDistForms() {
+  private static updateGraphEventAttrs() {
+    PetriView.graph.getCells().forEach(function(c) {
+      if (c.attributes.type == "customTransition") {
+        c.attributes.eventAttrs = [];
+        PetriView.eventAttrs.forEach(function(item) {
+          var event = item.replace(": ", "=").split(" -> ");
+          if (event[0] == c.attributes.attrs!["label"]!["text"]) { c.attributes.eventAttrs.push(event[1]) }
+        });
+      }
+    });
+  }
+
+  private static resetDistForms() {
     (<HTMLInputElement> document.getElementById("addCaseAttributes")).disabled = true;
     (<HTMLInputElement> document.getElementById("addEventAttributes")).disabled = true;
     $("#attrName").prop("value", "");
@@ -1746,8 +1823,8 @@ export class PetriView extends DOMWidgetView {
     $("#staticVal, #mue, #sigma, #n, #p, #k, #theta, #beta").prop("value", "");
   }
 
-  private showTab(id: string) {
-    this.resetDistForms();
+  private static showTab(id: string) {
+    PetriView.resetDistForms();
     $("#caseTab, #eventTab").prop("className", "tablinks");
     $("#caseTabContent, #eventTabContent").css("display", "none");
 
@@ -1775,6 +1852,8 @@ export class PetriView extends DOMWidgetView {
       var listEl = document.createElement("div");
       listEl.className = "transListEl";
       listEl.style.display = "flex";
+      listEl.style.cursor = "pointer";
+      listEl.addEventListener("click", (e:Event) => PetriView.selectTrans(listEl));
 
       let li = document.createElement('li');
       li.innerHTML = trans;
@@ -1782,7 +1861,6 @@ export class PetriView extends DOMWidgetView {
       var addEventAttrButton = document.createElement("button");
       addEventAttrButton.className = "dismissbutton";
       addEventAttrButton.innerHTML = "<i class='fa fa-plus-circle'></i>";
-      addEventAttrButton.addEventListener("click", (e:Event) => PetriView.selectTrans(listEl));
 
       listEl.append(addEventAttrButton, li);
       document.getElementById("transList")!.appendChild(listEl);

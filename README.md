@@ -7,10 +7,16 @@
 A custom petrinet widget.
 
 ## Installation
-You can install using `pip`:
+You can install the package using `pip`:
 
 ```bash
 pip install ipypetrinet
+```
+
+Alternatively you can clone the repository, change into the project folder and type:
+
+```bash
+pip install -e .
 ```
 
 If you are using Jupyter Notebook 5.2 or earlier, you may also need to enable
@@ -19,28 +25,42 @@ the nbextension:
 jupyter nbextension enable --py [--sys-prefix|--user|--system] ipypetrinet
 ```
 
-If the widget is not displayed, make sure you have ipywidget and notebook installed with the latest version.
+If the widget is not displayed, make sure you have `notebook` installed with the latest version.
+You can update it by typing:
+```bash
+pip install --upgrade notebook
+```
 
 ## Usage
-Cells can be added to the canvas by using the buttons above the canvas. The functionality of each button is briefly described below. To connect two cells via a link, you need to click and hold `alt-key` and then drag the source-cell to the destination-cell. You can only add links between places and transitions. Note that you can give labels to places and transitions and probabilities to links. By double-clicking a cell or a link you can modify the label or probability respectively. Transitions can be enriched with custom conditions. Please also note that the canvas can be resized by dragging the lower-right corner down.
+
+```bash
+from ipypetrinet import PetriWidget
+widget = PetriWidget()
+```
+
+The Widget consists of 18 buttons and a resizable canvas. The functionality of each button is briefly described below. 
+After adding cells (places or transitions) to the canvas, you can connect them via a link by clicking and holding `alt-key` and then dragging the source-cell to the destination-cell. You can only add links between places and transitions. Note that you can give labels to places and transitions and probabilities to links. By double-clicking a cell or a link you can modify the label or probability respectively. Transitions can be enriched with custom conditions by clicking the attached add-button. Please also note that the canvas can be resized by dragging the lower-right corner up or down.
 
 - `Graphs` will show a dropdown of two example graphs, which can be selected to play around with.
 - `Save Graph` will save the currently displayed graph in the `Graphs` dropdown. (CAUTION: It will only be stored temporarily in the local storage of the browser)
-- Import JSON` allows you to import a JSON-file as a graph to be displayed in the widget. (Is currently only displayed if it has the jointjs-graph syntax)
+- `Import JSON` allows you to import a JSON-file as a graph to be displayed in the widget. This also restores the case- and event-attributes of the imported model. (Is currently only displayed if it has the jointjs-graph syntax)
 - `Download SVG` allows you to download the current graph as SVG.
-- `Download JSON` allows you to download the current graph as JSON-file, which may be imported in another session to resume working.
+- `Download JSON` allows you to download the current graph as JSON-file, which may be imported in another session to resume working. It also stores the corresponding case- and event-attributes.
 - `Zoom in` and `Zoom out` will enlarge or shrink the graph.
 - `+ Place` will add a new place to the canvas.
-- `+ Transition` will add a new transition to the canvas. Please keep in mind that transitions always need a label. Within the transitions, conditions can be added using the `+` button.
-- `+` will add a token to a previously selected place. You can select places or transitions by simply left-clicking on them. Note that transitions cannot contain any tokens.
+- `+ Transition` will add a new transition to the canvas. Please keep in mind that transitions always need a label. Within the transitions, conditions can be added using the attached add-button.
+- `+` will add a token to a previously selected place. You can select places or transitions by simply left-clicking on them. Note that transitions cannot contain any tokens, while places may contain any positive number of tokens.
 - `-` will subtract a token of a previously selected place. Note that a place cannot contain a negative number of tokens.
-- `Remove` will delete a previously (the currently) selected cell and all adjacent links.
+- `Remove` will delete a previously (i.e. the currently) selected cell and all adjacent links.
 - `Clear` will delete the whole graph off the canvas. You can now start over with a fresh canvas. (CAUTION: at this point in time this cannot be revoked)
-- `Lock` will freeze the whole model, so cells can be moved around or deleted anymore. However, you can still rename things by double-clicking them.
+- `Lock` will freeze the whole model, so cells can't be moved around or deleted anymore. However, you can still relabel cells by double-clicking them.
 - `Play` will simulate the Petri net. Please mind that this simulation-mode doesn't take any conditions or probabilities into account.
 - `Stop` will stop the current simulation. (CAUTION: clicking `Play` twice without clicking `Stop` in between will cause undefined behavior.)
 - `Reset` will reset the model to the state it had the last time a token was added or removed.
-- `+ Attributes` will open a popup which allows you to add and delete both case- and event-attributes. A few options for the dynamic generation of variables are already supported (normal-, binomial-, gamma- and exponential-distribution). Please note, that you have to choose a certain transition to be extended by the respective event-attribute. For eventlog-simulation this means that the case-attributes will be computed dynamically per case, while the event-attributes will be dynamically calculated per transition-execution.
+- `+ Attributes` will open a popup which allows you to add and delete both case- and event-attributes. A few options for the dynamic generation of variables are already supported (normal-, binomial-, gamma- and exponential-distribution). Please note, that you have to choose a certain transition to be extended by the respective event-attribute. 
+
+Furthermore, the PetriWidget comes with two attributes and a readily implemented simulation functionality. The attributes may be obtained by typing `widget.graph` and `widget.caseAttrs`. If you want to draw the net once again using gviz, you can run `widget.drawPetriNet(widget.graph)`. However, the main and most interesting function is `widget.generate_eventlog(graph=widget.graph, case_attrs=widget.caseAttrs)` which will simulate an event log as a pandas dataframe and compute the respective event-attributes and case-attributes dynamically.
+
 
 ## Development Installation
 Create a dev environment:
