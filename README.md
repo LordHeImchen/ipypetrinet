@@ -13,11 +13,7 @@ You can install the package using `pip`:
 pip install ipypetrinet
 ```
 
-Alternatively you can clone the repository, change into the project folder and type:
-
-```bash
-pip install -e .
-```
+You may also need to install `pm4py`, `time`, `datetime`, `numpy`, and `copy`!
 
 If you are using Jupyter Notebook 5.2 or earlier, you may also need to enable
 the nbextension:
