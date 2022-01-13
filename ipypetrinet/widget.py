@@ -8,13 +8,13 @@ import time
 import datetime
 import numpy as np
 
-from ipywidgets import DOMWidget, ValueWidget, register
-from traitlets import Unicode, Bool, validate, TraitError, List
+from ipywidgets import DOMWidget, register
+from traitlets import Unicode, List
 from ._frontend import module_name, module_version
 
 from copy import copy
 from pm4py.objects.log import obj as log_instance
-from pm4py.objects.petri_net.utils import petri_utils, reachability_graph
+from pm4py.objects.petri_net.utils import petri_utils
 from pm4py.objects.petri_net.obj import PetriNet, Marking
 from pm4py.objects.conversion.log import converter as log_converter
 from pm4py.visualization.petri_net import visualizer as pn_visualizer
@@ -35,7 +35,6 @@ class PetriWidget(DOMWidget):
     caseAttrs = List().tag(sync=True)
 
 
-    # Methods to simulate eventlogs based on widget-graph and caseAttrs
     def add_nodes(self, net, trans, placelist):
         """ Adds places and transitions to a pm4py-petrinet """
 
@@ -103,7 +102,6 @@ class PetriWidget(DOMWidget):
         return smap
 
 
-    # get unix time (seconds since 01.01.1970) from timestamp
     def get_unix_time(self, t=datetime.datetime(2021, 1, 1, 12, 0)):
         """ Returns the seoconds since 01.01.1970 for a given datetime """
 
@@ -141,13 +139,13 @@ class PetriWidget(DOMWidget):
         return True
 
 
-    # Always subtracts exactly one token from source!
     def execute(self, t, pn, m):
         """ Executes a transition if possible """
 
         if not self.is_enabled(t, pn, m):
             return None
 
+        # Always subtracts exactly one token from source!
         m_out = copy(m)
         for a in t.in_arcs:
             m_out[a.source] -= 1
@@ -341,6 +339,7 @@ class PetriWidget(DOMWidget):
         net, _, _, _, initial_marking = self.createPetriNet(graph, name=name)
         gviz = pn_visualizer.apply(net, initial_marking)
         pn_visualizer.view(gviz)
+
 
     def generate_eventlog(self, graph, case_attrs=[], name="PetriNet", no_traces=100, max_trace_length=500, draw=False, init_timestamp=1609502400):
         ''' 

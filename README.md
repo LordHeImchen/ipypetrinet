@@ -38,6 +38,8 @@ from ipypetrinet import PetriWidget
 widget = PetriWidget()
 ```
 
+![PetriWidget](./examples/PetriWidget.png)
+
 The Widget consists of 18 buttons and a resizable canvas. The functionality of each button is briefly described below. 
 After adding cells (places or transitions) to the canvas, you can connect them via a link by clicking and holding `alt-key` and then dragging the source-cell to the destination-cell. You can only add links between places and transitions. Note that you can give labels to places and transitions and probabilities to links. By double-clicking a cell or a link you can modify the label or probability respectively. Transitions can be enriched with custom conditions by clicking the attached add-button. Please also note that the canvas can be resized by dragging the lower-right corner up or down.
 

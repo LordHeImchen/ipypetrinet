@@ -13,9 +13,9 @@
     "dist/*.js",
     "css/*.css"
   ],
-  "homepage": "https://github.com/DFKI/ipypetrinet",
+  "homepage": "https://github.com/LordHeImchen/ipypetrinet",
   "bugs": {
-    "url": "https://github.com/DFKI/ipypetrinet/issues"
+    "url": "https://github.com/LordHeImchen/ipypetrinet/issues"
   },
   "license": "BSD-3-Clause",
   "author": {
@@ -26,7 +26,7 @@
   "types": "./lib/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "https://github.com/DFKI/ipypetrinet"
+    "url": "https://github.com/LordHeImchen/ipypetrinet"
   },
   "scripts": {
     "build": "yarn run build:lib && yarn run build:nbextension && yarn run build:labextension:dev",
