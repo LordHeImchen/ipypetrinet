@@ -6,7 +6,6 @@ Important note: Presentation attributes have a lower precedence over CSS style r
 */
 
 /* Own CSS-Styles by me */
-
 /* Style everything button related */
 .button {
   border: none;
@@ -168,7 +167,82 @@ input.radio {
 
 /* Show the dropdown menu on hover */
 .dropdown:hover .dropdown-content {display: block;}
-.dropdown:hover .dropbtn {background-color: #3e8e41;}
+
+/* SLIDER */
+.slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 5px;
+  padding: 0px;
+  border-radius: 3px;
+  background: #d3d3d3;
+  outline: none;
+  opacity: 0.7;
+  -webkit-transition: .2s;
+  transition: opacity .2s;
+}
+
+.slider:hover {
+  opacity: 1;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #7c68fc;
+  cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #7c68fc;
+  cursor: pointer;
+}
+
+/* CUSTOM SELECT */
+/* A reset of styles, including removing the default dropdown arrow */
+select {
+  -moz-appearance: none;
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 3px;
+  border-color: #d3d3d3;
+  cursor: pointer;
+  line-height: 1.5;
+  padding-left: 5px;
+  width: 100%;
+  margin-bottom: 5px;
+}
+
+.select {
+  position: relative;
+  width: 100%;
+  margin-bottom: 5px;
+}
+
+.select::before {
+  color: #0000;
+  font-size: 20px;
+  pointer-events: none;
+  position: absolute;
+  right: 15px;
+  top: 10px;
+}
+
+/* Style the arrow inside the select element: */
+.select::after {
+  position: absolute;
+  content: "";
+  top: 9px;
+  right: 10px;
+  border: 6px solid transparent;
+  border-color: #000000 transparent transparent transparent;
+}
 
 /* Style the paper where the graph is rendered on */
 #paper {

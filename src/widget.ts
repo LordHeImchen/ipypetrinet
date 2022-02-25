@@ -3,238 +3,15 @@
 
 import { DOMWidgetModel, DOMWidgetView, ISerializers } from '@jupyter-widgets/base';
 import { MODULE_NAME, MODULE_VERSION } from './version';
+import { customTransition } from './customTrans';
+
 import * as joint from '../node_modules/jointjs/dist/joint';
 import '../css/widget.css';
+import graphlib from 'graphlib';
+import dagre from 'dagre';
 
-// this is very important for loading a saved graph (namespace problem)
+// very important for loading a saved graph (namespace problem)
 window.joint = joint;
-
-// Extending the joint.shapes.pn.Transition:
-// Set some constants to structure it clearly
-const PADDING_S = 4;
-const PADDING_L = 4;
-const FONT_FAMILY = 'sans-serif';
-const LIGHT_COLOR = '#FFF';
-const DARK_COLOR = '#333';
-const ACTION_COLOR = '#7c68fc';
-const LINE_WIDTH = 2;
-const HEADER_HEIGHT = 15;
-const LIST_MAX_PORT_COUNT = 5;
-const LIST_GROUP_NAME = 'conditions';
-const LIST_ITEM_HEIGHT = 23;
-const LIST_ITEM_WIDTH = 120;
-const LIST_ITEM_LABEL = 'Condition Item';
-const LIST_ITEM_GAP = 1;
-const LIST_BUTTON_RADIUS = 16;
-const LIST_ADD_BUTTON_SIZE = 20;
-const LIST_REMOVE_BUTTON_SIZE = 16;
-
-const itemPosition = (portsArgs: joint.dia.Element.Port[], elBBox: joint.dia.BBox): joint.g.Point[] => {
-  return portsArgs.map((_port: joint.dia.Element.Port, index: number, { length }) => {
-      const bottom = elBBox.height - (LIST_ITEM_HEIGHT + LIST_ADD_BUTTON_SIZE) / 2 - PADDING_S;
-      const y = (length - 1 - index) * (LIST_ITEM_HEIGHT + LIST_ITEM_GAP);
-      return new joint.g.Point(0, bottom - y);
-  });
-};
-const conditionAttributes = {
-  attrs: {
-    portBody: {
-      width: 'calc(w)',
-      height: 'calc(h)',
-      x: '2',
-      y: 'calc(-0.5*h)',
-      fill: '#333',
-      rx: 3,
-      ry: 3
-    },
-    portRemoveButton: {
-      cursor: 'pointer',
-      event: 'element:port:remove',
-      transform: `translate(${PADDING_L},0)`,
-      title: 'Remove Condition'
-    },
-    portRemoveButtonBody: {
-        width: LIST_REMOVE_BUTTON_SIZE,
-        height: LIST_REMOVE_BUTTON_SIZE,
-        x: 1,
-        y: -LIST_REMOVE_BUTTON_SIZE / 2,
-        fill: LIGHT_COLOR,
-        rx: LIST_BUTTON_RADIUS,
-        ry: LIST_BUTTON_RADIUS
-    },
-    portRemoveButtonIcon: {
-      d: 'M 5 -4 13 4 M 5 4 13 -4',
-      stroke: DARK_COLOR,
-      strokeWidth: LINE_WIDTH
-    },
-    portLabel: {
-      pointerEvents: 'none',
-      fontFamily: FONT_FAMILY,
-      fontWeight: 400,
-      fontSize: 10,
-      fill: LIGHT_COLOR,
-      textAnchor: 'start',
-      textVerticalAnchor: 'middle',
-      textWrap: {
-          width: - LIST_REMOVE_BUTTON_SIZE - PADDING_L - 2 * PADDING_S,
-          maxLineCount: 1,
-          ellipsis: true
-      },
-      x: PADDING_L + LIST_REMOVE_BUTTON_SIZE + PADDING_S
-    },
-  },
-  size: {
-    width: LIST_ITEM_WIDTH,
-    height: LIST_ITEM_HEIGHT
-  },
-  markup: [{
-    tagName: 'rect',
-    selector: 'portBody'
-  }, {
-    tagName: 'text',
-    selector: 'portLabel',
-  }, {
-    tagName: 'g',
-    selector: 'portRemoveButton',
-    children: [{
-        tagName: 'rect',
-        selector: 'portRemoveButtonBody'
-    }, {
-        tagName: 'path',
-        selector: 'portRemoveButtonIcon'
-    }]
-  }]
-};
-const bodyAttributes = {
-  attrs: {
-      ".root": {
-          magnet: true
-      },
-      body: {
-        width: 'calc(w)',
-        height: 'calc(h)',
-        fill: "#9586fd",
-        strokeWidth: LINE_WIDTH + 1,
-        stroke: "#7c68fc",
-        rx: 3,
-        ry: 3,
-      },
-      label: {
-        'text-anchor': 'middle',
-        'ref-x': .5,
-        'ref-y': -15,
-        'ref': 'rect',
-        'text': "",
-        'fill': '#fe854f',
-        'font-size': 12,
-        'font-weight': 600,
-      },
-      portAddButton: {
-          title: 'Add Condition',
-          cursor: 'pointer',
-          event: 'element:port:add',
-          transform: `translate(calc(w-${3 * PADDING_S}),calc(h))`,
-      },
-      portAddButtonBody: {
-          width: LIST_ADD_BUTTON_SIZE,
-          height: LIST_ADD_BUTTON_SIZE,
-          rx: LIST_BUTTON_RADIUS,
-          ry: LIST_BUTTON_RADIUS,
-          x: -LIST_ADD_BUTTON_SIZE / 2,
-          y: -LIST_ADD_BUTTON_SIZE / 2,
-      },
-      portAddButtonIcon: {
-          d: 'M -4 0 4 0 M 0 -4 0 4',
-          stroke: LIGHT_COLOR,
-          strokeWidth: LINE_WIDTH
-      }
-  },
-  markup: [{
-      tagName: 'rect',
-      selector: 'body',
-  }, {
-      tagName: 'text',
-      selector: 'label',
-  }, {
-      tagName: 'g',
-      selector: 'portAddButton',
-      children: [{
-          tagName: 'rect',
-          selector: 'portAddButtonBody'
-      }, {
-          tagName: 'path',
-          selector: 'portAddButtonIcon'
-      }]
-  }]
-};
-// Actual Extension of the Transition:
-class customTransition extends joint.shapes.pn.Transition {
-  defaults() {
-    return {
-      ...super.defaults,
-      ...bodyAttributes,
-      type: "customTransition",
-      size: { width: LIST_ITEM_WIDTH + 4, height: 0 },
-      exectime: "1",
-      eventAttrs: [],
-      ports: {
-        groups: {
-          [LIST_GROUP_NAME]: {
-            position: itemPosition,
-            ...conditionAttributes
-          }
-        },
-        items: []
-      }
-    }
-  }
-
-  initialize(...args: any[]) {
-    this.on('change:ports', () => this.resizeToFitPorts());
-    this.resizeToFitPorts();
-    this.toggleAddPortButton(LIST_GROUP_NAME);
-    super.initialize.call(this, ...args);
-  }
-
-  resizeToFitPorts() {
-    const { length } = this.getPorts();
-    this.toggleAddPortButton(LIST_GROUP_NAME);
-    const height = HEADER_HEIGHT + (LIST_ITEM_HEIGHT + LIST_ITEM_GAP) * length + PADDING_L;
-    this.prop(['size', 'height'], HEADER_HEIGHT + (LIST_ITEM_HEIGHT + LIST_ITEM_GAP) * length + PADDING_L);
-    return height
-  }
-
-  addDefaultPort(label: string) {
-    if (!this.canAddPort(LIST_GROUP_NAME)) return;
-    this.addPort({
-        group: LIST_GROUP_NAME,
-        attrs: { portLabel: { text: label }}
-    });
-  }
-
-  getDefaultPortName() {
-      const ports = this.getGroupPorts(LIST_GROUP_NAME);
-      let portName: any;
-      let i = 1;
-      do {
-          portName = `${LIST_ITEM_LABEL} ${i++}`;
-      } while (ports.find(port => port.attrs!.portLabel!.text === portName));
-      return portName;
-  }
-
-  canAddPort(group: string): boolean {
-      return Object.keys(this.getGroupPorts(group)).length < LIST_MAX_PORT_COUNT;
-  }
-
-  toggleAddPortButton(group: string): void {
-      const buttonAttributes = this.canAddPort(group)
-          ? { fill: ACTION_COLOR, cursor: 'pointer' }
-          : { fill: 'lightgray', cursor: 'not-allowed' };
-      this.attr(['portAddButton'], buttonAttributes, {
-          isolate: true
-      });
-  }
-}
 // Make sure graph.fromJSON() will find the custom shape
 Object.assign(joint.shapes, { customTransition });
 
@@ -326,10 +103,10 @@ export class PetriView extends DOMWidgetView {
     addTrans.addEventListener("click", (e:Event) => this.addTrans());
     addTrans.innerHTML = '<i class="fa fa-plus"></i>' + " Transition";
 
-    var removeCell = document.createElement("button");
-    removeCell.className = "button button1";
-    removeCell.addEventListener("click", (e:Event) => this.removeCell());
-    removeCell.innerHTML = '<i class="fa fa-trash"></i>' + " Remove";
+    var setLayout = document.createElement("button");
+    setLayout.className = "button button1";
+    setLayout.addEventListener("click", (e:Event) => PetriView.showPopup("layoutPopup"));
+    setLayout.innerHTML = '<i class="fa fa-sitemap"></i>' + " Layout";
 
     var clearAll = document.createElement("button");
     clearAll.className = "button button1";
@@ -370,12 +147,12 @@ export class PetriView extends DOMWidgetView {
     var importJSON = document.createElement("button");
     importJSON.className = "button button2";
     importJSON.addEventListener("click", (e:Event) => PetriView.showPopup("uploadPopup"));
-    importJSON.innerHTML = '<i class="fa fa-upload"></i>' + " Import JSON";
+    importJSON.innerHTML = '<i class="fa fa-upload"></i>' + " Import Graph";
 
     var downloadJSON = document.createElement("button");
     downloadJSON.className = "button button2";
-    downloadJSON.addEventListener("click", (e:Event) => this.downloadJSON());
-    downloadJSON.innerHTML = '<i class="fa fa-download"></i>' + " Download JSON";
+    downloadJSON.addEventListener("click", (e:Event) => PetriView.showPopup("DownloadPopup"));
+    downloadJSON.innerHTML = '<i class="fa fa-download"></i>' + " Download Graph";
 
     var zoomIn = document.createElement("button");
     zoomIn.className = "button button2";
@@ -391,6 +168,32 @@ export class PetriView extends DOMWidgetView {
     addAttrs.className = "button button1";
     addAttrs.addEventListener("click", (e:Event) => PetriView.showPopup("attrPopup"));
     addAttrs.innerHTML = '<i class="fa fa-plus"></i>' + " Attributes";
+
+    // DOWNLOAD-POPUP
+    var downPopup = document.createElement("div");
+    downPopup.id = "DownloadPopup";
+    downPopup.className = "popup";
+    downPopup.style.display = "none";
+
+    var downPopupContent = document.createElement("div");
+    downPopupContent.id = "DownloadPopupContent";
+    downPopupContent.className = "popup-content";
+    downPopupContent.style.display = "flex";
+
+    var JSONButton = document.createElement("button");
+    JSONButton.id = "JSONButton";
+    JSONButton.className = "button button1";
+    JSONButton.innerHTML = "JSON";
+    JSONButton.addEventListener("click", (e:Event) => this.downloadJSON());
+
+    var PNMLButton = document.createElement("button");
+    PNMLButton.id = "PNMLButton";
+    PNMLButton.className = "button button1";
+    PNMLButton.innerHTML = "PNML";
+    PNMLButton.addEventListener("click", (e:Event) => this.downloadPNML());
+
+    downPopupContent.append(JSONButton, PNMLButton);
+    downPopup.appendChild(downPopupContent);
 
     // ATTRIBUTES-POPUP
     var attrPopup = document.createElement("div");
@@ -439,15 +242,20 @@ export class PetriView extends DOMWidgetView {
     check0.addEventListener("change", (e:Event) => this.toggleFields(check0.id));
     var label0 = document.createElement("label");
     label0.htmlFor = "staticAttr";
-    label0.textContent = "Static";
+    label0.textContent = "List with probabilities";
     var div0 = document.createElement("div");
     div0.style.display = "flex";
     div0.append(check0, label0);
     
     var staticValue = document.createElement("input");
     staticValue.id = "staticVal";
-    staticValue.placeholder = "Set static value...";
+    staticValue.placeholder = '"item0", "item1", "item2", ...';
     staticValue.style.display = "none";
+
+    var staticProbs = document.createElement("input");
+    staticProbs.id = "staticProbs";
+    staticProbs.placeholder = "Probabilities summing to one...";
+    staticProbs.style.display = "none";
 
     var check1 = document.createElement("input");
     check1.type = "radio";
@@ -584,9 +392,92 @@ export class PetriView extends DOMWidgetView {
 
     caseTabContent.append(addCaseAttributes, caseAttrsList);
     eventTabContent.append(eventHeader, transList, addEventAttributes, eventAttrsList);
-    attrPopupContent.append(tabBar, attrName, div0, staticValue, div1, mue, sigma, div2, n, p, 
+    attrPopupContent.append(tabBar, attrName, div0, staticValue, staticProbs, div1, mue, sigma, div2, n, p, 
                             div3, k, theta, div4, beta, caseTabContent, eventTabContent)
     attrPopup.append(attrPopupContent);
+
+    // LAYOUT-POPUP
+    var layoutPopup = document.createElement("div");
+    layoutPopup.id = "layoutPopup";
+    layoutPopup.className = "popup";
+    layoutPopup.style.display = "none";
+
+    var layoutContent = document.createElement("div");
+    layoutContent.className = "popup-content";
+
+    var nodeSep = document.createElement("input");
+    nodeSep.min = "1";
+    nodeSep.max = "200";
+    nodeSep.value = "50";    
+    nodeSep.type = "range";
+    nodeSep.id = "nodeSepInput";
+    nodeSep.className = "slider";
+    nodeSep.oninput = (e:Event) => {nodeSpan.innerHTML = nodeSep.value};
+    var nodeP = document.createElement("p");
+    nodeP.innerHTML = "Node Separation: "
+    var nodeSpan = document.createElement("span");
+    nodeSpan.innerHTML = nodeSep.value;
+    nodeP.appendChild(nodeSpan);
+
+    var edgeSep = document.createElement("input");
+    edgeSep.min = "1";
+    edgeSep.max = "200";
+    edgeSep.value = "50";    
+    edgeSep.type = "range";
+    edgeSep.id = "edgeSepInput";
+    edgeSep.className = "slider";
+    edgeSep.oninput = (e:Event) => {edgeSpan.innerHTML = edgeSep.value};
+    var edgeP = document.createElement("p");
+    edgeP.innerHTML = "Edge Separation: "
+    var edgeSpan = document.createElement("span");
+    edgeSpan.innerHTML = edgeSep.value;
+    edgeP.appendChild(edgeSpan);
+
+    var rankSep = document.createElement("input");
+    rankSep.min = "1";
+    rankSep.max = "200";
+    rankSep.value = "50";    
+    rankSep.type = "range";
+    rankSep.id = "rankSepInput";
+    rankSep.className = "slider";
+    rankSep.oninput = (e:Event) => {rankSpan.innerHTML = rankSep.value};
+    var rankP = document.createElement("p");
+    rankP.innerHTML = "Rank Separation: "
+    var rankSpan = document.createElement("span");
+    rankSpan.innerHTML = rankSep.value;
+    rankP.appendChild(rankSpan);
+
+    var orientationP = document.createElement("p");
+    orientationP.innerHTML = "Orientation: ";
+    var selectDiv = document.createElement("div");
+    selectDiv.className = "select";
+    var layoutDir = document.createElement("select");
+    layoutDir.id = "layoutDir";
+    layoutDir.value = "LR";
+    var dirOption1 = document.createElement("option");
+    dirOption1.label = "Left-Right";
+    dirOption1.value = "LR";
+    dirOption1.selected = true;
+    var dirOption2 = document.createElement("option");
+    dirOption2.label = "Bottom-Top";
+    dirOption2.value = "BT";
+    var dirOption3 = document.createElement("option");
+    dirOption3.label = "Top-Bottom";
+    dirOption3.value = "TB";
+    var dirOption4 = document.createElement("option");
+    dirOption4.label = "Right-Left";
+    dirOption4.value = "RL";
+    layoutDir.append(dirOption1, dirOption2, dirOption3, dirOption4);
+    selectDiv.appendChild(layoutDir);
+
+    var confirmButton = document.createElement("button");
+    confirmButton.className = "button button1";
+    confirmButton.style.marginTop = "5px";
+    confirmButton.innerHTML = "Set Layout!";
+    confirmButton.addEventListener("click", (e:Event) => this.resetLayout());
+
+    layoutContent.append(orientationP, selectDiv, nodeP, nodeSep, edgeP, edgeSep, rankP, rankSep, confirmButton);
+    layoutPopup.appendChild(layoutContent);
 
     // UPLOAD-POPUP
     var uploadPopup = document.createElement("div");
@@ -601,20 +492,20 @@ export class PetriView extends DOMWidgetView {
     fileInput.className = "fileinput";
     fileInput.id = "fileInput";
     fileInput.type = "file";
-    fileInput.accept = "application/JSON";
+    fileInput.accept = "application/JSON,.pnml";
     fileInput.style.display = "none";
     fileInput.addEventListener("change", (e:Event) => this.showFileName());
 
     var label = document.createElement("label");
     label.htmlFor = "fileInput";
     label.className = "uploadLabel"
-    label.textContent = "Select a JSON-File...";
+    label.textContent = "JSON or PNML-File...";
 
     var uploadJSON = document.createElement("button");
     uploadJSON.id = "uploadJSON";
     uploadJSON.className = "button button1";
     uploadJSON.textContent = "Import Graph!";
-    uploadJSON.addEventListener("click", (e:Event) => PetriView.importJSON());
+    uploadJSON.addEventListener("click", (e:Event) => PetriView.importJSON()); 
 
     uploadPopupContent.append(label, fileInput, uploadJSON);
     uploadPopup.appendChild(uploadPopupContent);
@@ -740,9 +631,9 @@ export class PetriView extends DOMWidgetView {
 
     // ADD EVERYTHING TO NOTEBOOK HTML CODE
     this.el.append(dropdown, saveGraph, importJSON, saveIMG, downloadJSON, zoomIn, zoomOut, addPlace,
-                   addTrans, addToken, removeToken, removeCell, clearAll, lockModel, simulate, 
+                   addTrans, addToken, removeToken, setLayout, clearAll, lockModel, simulate, 
                    stopSimulation, reloadSim, addAttrs);
-    this.el.append(popup, linkPopup, savePopup, uploadPopup, condPopup, attrPopup);
+    this.el.append(popup, linkPopup, savePopup, uploadPopup, downPopup, condPopup, attrPopup, layoutPopup);
 
     // Init paper, give it the respective ID, restrict its elements moving area and append it
     this.initWidget();
@@ -853,16 +744,24 @@ export class PetriView extends DOMWidgetView {
             this.findViewByModel(cellView.model).setInteractivity(true);
           }
           if (evt.altKey) {
+              var connect = true;
               var coordinates = new joint.g.Point(x, y);
               var elementAbove = cellView.model;
               var elementBelow = this.model.findModelsFromPoint(coordinates).find(function(cell: joint.dia.Cell) {
                   return (cell.id !== elementAbove.id)
               });
-              
-              // If the two elements are connected already or have the same cell type, don't connect them (again).
-              if ((elementBelow && PetriView.graph.getNeighbors(elementBelow).indexOf(elementAbove) === -1) && 
-                  (elementAbove.attributes.type != elementBelow.attributes.type) && (elementAbove.attributes.type != "pn.Link") 
-                  && (elementBelow.attributes.type != "pn.Link")) {
+
+              if (typeof(elementAbove) == 'undefined') {
+                PetriView.graph.getConnectedLinks(elementBelow!).forEach(link => {
+                  if (link.attributes.source.id == elementAbove.id) {
+                    connect = false;
+                  }
+                });
+              }
+
+              // If the two elements are connected in that direction already or have the same cell type, don't connect them (again).
+              if (elementBelow && (elementAbove.attributes.type != elementBelow.attributes.type) &&
+                  (elementAbove.attributes.type != "pn.Link") && (elementBelow.attributes.type != "pn.Link") && connect) {
                   
                   // Move the cell to the position before dragging and create a connection afterwards.
                   elementAbove.position(evt.data.x, evt.data.y);
@@ -954,6 +853,7 @@ export class PetriView extends DOMWidgetView {
 
     // UPDATING PYTHON BASED ON TYPESCRIPT
     PetriView.graph.on("change", this.updateGraph.bind(this), this);
+    PetriView.graph.on('change:property', this.updateGraph.bind(this), this);
   }
 
   private initWidget() {
@@ -970,6 +870,7 @@ export class PetriView extends DOMWidgetView {
       el: document.createElement("div"),
       width: this.width,
       height: this.height,
+      drawGrid: false,
       gridSize: PetriView.gridSize,
       defaultAnchor: { name: 'perpendicular' },
       defaultConnectionPoint: { name: 'boundary' },
@@ -997,7 +898,7 @@ export class PetriView extends DOMWidgetView {
 
   private updateGraph() {
     var allCells = PetriView.graph.getCells();
-    allCells.concat(PetriView.graph.getLinks());
+    // allCells.concat(PetriView.graph.getLinks());
     var res: any[] = []
 
     allCells.forEach(function(cell: any) {
@@ -1044,7 +945,7 @@ export class PetriView extends DOMWidgetView {
     var currentZoom = PetriView.paper.scale().sx;
     if (document.querySelector('#lock')!.textContent == " Lock") {
       var newZoom = currentZoom + 0.2 * delta;
-      if (newZoom > MIN_ZOOM && newZoom < MAX_ZOOM) {
+      if (newZoom >= MIN_ZOOM && newZoom <= MAX_ZOOM) {
         // PetriView.paper.translate(0, 0);
         PetriView.paper.scale(newZoom, newZoom);
       }
@@ -1151,7 +1052,7 @@ export class PetriView extends DOMWidgetView {
     ]);
 
     this.updateGraph();
-    PetriView.backupTokens = PetriView.getTokenlist(PetriView.graph.getCells())
+    PetriView.backupTokens = PetriView.getTokenlist(PetriView.graph.getCells());
   }
 
   private secondExample() {
@@ -1252,6 +1153,10 @@ export class PetriView extends DOMWidgetView {
     return new joint.shapes.pn.Link({
         source: { id: a.id, selector: '.root' },
         target: { id: b.id, selector: '.root' },
+        // creates little jumps over other links
+        connector: { name: 'jumpover',
+                     args: { size: 5 }
+        },
         z: -1,
         attrs: { 
           text: {
@@ -1326,13 +1231,15 @@ export class PetriView extends DOMWidgetView {
     document.getElementById(id)!.style.display = "flex";
 
     // set focus to first input-field in popup
-    var inputField = document.getElementById(id)?.getElementsByTagName("input")[0]!;
-    document.getElementById(inputField.id)!.focus();
+    if (id != "layoutPopup" && id != "downloadPopup") {
+      var inputField = document.getElementById(id)?.getElementsByTagName("input")[0]!;
+      document.getElementById(inputField.id)!.focus();
 
-    // Set value of labelPopup-Input based on selected Link
-    // slice creates a copy of last element --> so actually "labels" is not changed by "pop()"
-    if (id=="linkPopup") {
-      inputField.value = PetriView.selectedCell.attributes.labels.slice(-1).pop()["attrs"]["text"]["text"];
+      // Set value of labelPopup-Input based on selected Link
+      // slice creates a copy of last element --> so actually "labels" is not changed by "pop()"
+      if (id=="linkPopup") {
+        inputField.value = PetriView.selectedCell.attributes.labels.slice(-1).pop()["attrs"]["text"]["text"];
+      }
     }
   }
 
@@ -1374,25 +1281,22 @@ export class PetriView extends DOMWidgetView {
       }
     });
     PetriView.graph.addCell(PetriView.selectedCell);
+    document.getElementById("timeLabel")!.style.display = "flex";
+    document.getElementById("timeInput")!.style.display = "flex";
     PetriView.showPopup("popup");
     this.updateGraph();
-
   }
 
-  private removeCell() {
-    try {
-      // Remove all Event-Attributes of the respective Transition
-      if (PetriView.selectedCell.attributes.type == "customTransition") {
-        var transName = PetriView.selectedCell.model.attributes.attrs!["label"]!["text"];
-        PetriView.eventAttrs = PetriView.eventAttrs.filter(attr => attr.split(" -> ")[0] !== transName);
-        PetriView.updateAttrsFrontend("eventAttrsList");
-      }
-      PetriView.graph.removeCells(PetriView.selectedCell);
-      PetriView.updateTransList();
+  private resetLayout() {
+    $("#layoutPopup").css("display", "none");
 
-    } catch(e) {
-      return "Nothing selected! Please select a place or transition before removing."
-    }
+    var nodeSep = Number($("#nodeSepInput").prop("value"));
+    var edgeSep = Number($("#edgeSepInput").prop("value"));
+    var rankSep = Number($("#rankSepInput").prop("value"));
+    var orientation = $("#layoutDir").prop("value");
+    var options = { dagre: dagre, graphlib: graphlib, nodeSep: nodeSep, edgeSep: edgeSep, 
+                    rankSep: rankSep, rankDir: orientation, setVertices: true, marginX: 20, marginY: 30 };
+    joint.layout.DirectedGraph.layout(PetriView.graph, options);
   }
 
   private clearAll() {
@@ -1431,7 +1335,6 @@ export class PetriView extends DOMWidgetView {
 
       placesBefore.forEach(function(p: any) {
         if (p.get('tokens') === 0) {
-          console.log("TOKENS");
           isFirable = false;
         } 
       });
@@ -1489,11 +1392,9 @@ export class PetriView extends DOMWidgetView {
       jQuery('.marker-arrowheads').css("cursor", "pointer");
       jQuery('.marker-vertices').css("cursor", "pointer");
       jQuery('.joint-link.joint-theme-dark .connection-wrap').css("cursor", "pointer");
-      //paper.setInteractivity({ elementMove: false }); // enables to still move the links
     } else {
       document.querySelector('#lock')!.innerHTML = '<i class="fa fa-unlock"></i>' + " Lock"
       PetriView.paper.setInteractivity(function() { return true });
-      //paper.setInteractivity({ elementMove: true });
     }
   }
 
@@ -1529,6 +1430,179 @@ export class PetriView extends DOMWidgetView {
     (<HTMLButtonElement> document.getElementById("saveGraphAs")!).disabled = true;
   }
 
+  private static parsePNML(xmlPnml: any) {
+    var placePos = new Set<number>();
+    var transPos = new Set<number>();
+    for (let childId in xmlPnml.childNodes) {
+      let child: any = xmlPnml.childNodes[childId];
+      if (child.tagName == "net") {
+        for (let child2Id in child.childNodes) {
+          let child2 = child.childNodes[child2Id];
+          if (child2.tagName == "caseattr") {
+            PetriView.caseAttrs.push(child2.getAttribute("label"));
+          }
+        }
+        PetriView.parsePNML(child);
+      } else if (child.tagName == "page") {
+        PetriView.parsePNML(child);
+      }
+      else {
+        if (child.tagName == "place") {
+          let placeId = child.getAttribute("id");
+          var placeName = "";
+					var placeTokens = 0;
+          var xPos = 20;
+          var yPos = 25;
+
+          for (let child2Id in child.childNodes) {
+						let child2 = child.childNodes[child2Id];
+						if (child2.tagName == "name") {
+							for (let child3Id in child2.childNodes) {
+								let child3 = child2.childNodes[child3Id];
+								if (child3.tagName == "text") {
+									placeName = child3.textContent;
+								}
+							}
+						}
+            else if (child2.tagName == "graphics") {
+              for (let child3Id in child2.childNodes) {
+                let child3 = child2.childNodes[child3Id];
+                if (child3.tagName == "position") {
+                  xPos = parseInt(child3.getAttribute("x"))*10;
+                  yPos = parseInt(child3.getAttribute("y"))*10;
+                }
+              }
+            }
+						else if (child2.tagName != null && child2.tagName.toLowerCase() == "initialmarking") {
+							for (let child3Id in child2.childNodes) {
+								let child3 = child2.childNodes[child3Id];
+								if (child3.tagName == "text") {
+									placeTokens = parseInt(child3.textContent);
+								}
+							}
+						}
+					}
+          let newPlace = new joint.shapes.pn.Place(
+            {attrs: 
+              {'.label': {'text': placeName, 'fill': '#7c68fc'},
+               '.root': {'stroke': '#7c68fc', 'stroke-width': 3},
+               '.tokens > circle': {'fill': '#7a7e9b'},
+               '.alot > text': {
+                 'fill': '#fe854c',
+                 'font-family': 'Courier New',
+                 'font-size': 20,
+                 'font-weight': 'bold',
+                 'ref-x': 0.5,
+                 'ref-y': 0.5,
+                 'y-alignment': -0.5,
+                 'transform': null as any
+                }
+              },
+            tokens: placeTokens,
+            position: { x: xPos, y: yPos },
+            id: placeId
+          });
+          PetriView.graph.addCell(newPlace);
+          placePos.add(xPos).add(yPos);
+        }
+
+        else if (child.tagName == "transition") {
+          let transId = child.getAttribute("id");
+					var transLabel = transId;
+          var xPos = 20;
+          var yPos = 25;
+          var conditions = [];
+          var eventattrs = [];
+
+          for (let child2Id in child.childNodes) {
+						let child2 = child.childNodes[child2Id];
+						if (child2.tagName == "name") {
+							for (let child3Id in child2.childNodes) {
+								let child3 = child2.childNodes[child3Id];
+								if (child3.tagName == "text") {
+									transLabel = child3.textContent;
+								}
+							}
+						}
+            else if (child2.tagName == "toolspecific") {
+              if (child2.getAttribute("tool") == "ipypetrinet") {
+                var exectime = child2.getAttribute("exectime");
+                for (let child3Id in child2.childNodes) {
+                  let child3 = child2.childNodes[child3Id];
+                  if (child3.tagName == "condition") {
+                    conditions.push(child3.getAttribute("label"));
+                  }
+                  else if (child3.tagName == "eventattr") {
+                    eventattrs.push(child3.getAttribute("label"));
+                  }
+                }
+              }
+            }
+            else if (child2.tagName == "graphics") {
+              for (let child3Id in child2.childNodes) {
+                let child3 = child2.childNodes[child3Id];
+                if (child3.tagName == "position") {
+                  xPos = parseInt(child3.getAttribute("x"))*10;
+                  yPos = parseInt(child3.getAttribute("y"))*10;
+                }
+              }
+            }
+          }
+          let newTrans = new customTransition({
+            attrs: {
+              label: {
+                text: transLabel
+              }
+            },
+            exectime: exectime,
+            eventAttrs: eventattrs,
+            position: { x: xPos, y: yPos },
+            id: transId,
+          });
+          conditions.forEach( (cond: string) => { newTrans.addDefaultPort(cond); });
+          PetriView.graph.addCell(newTrans);
+          transPos.add(xPos).add(yPos);
+        }
+
+        else if (child.tagName == "arc") {
+          // Dictonaries only to be able to use existing PetriView.link function
+          let arcSource = {id: child.getAttribute("source")};
+					let arcTarget = {id: child.getAttribute("target")};
+					var arcProb = "1.00";
+
+					for (let child2Id in child.childNodes) {
+						let child2 = child.childNodes[child2Id];
+						if (child2.tagName == "name") {
+							for (let child3Id in child2.childNodes) {
+								let child3 = child2.childNodes[child3Id];
+								if (child3.tagName == "text") {
+									arcProb = child3.textContent;
+								}
+							}
+						}
+					}
+
+          var newLink = PetriView.link(arcSource, arcTarget);
+          newLink.attributes.labels.pop();
+          newLink.appendLabel({
+            attrs: {text: { text: arcProb }},
+            position: {distance: 0.5, args: { keepGradient: true, ensureLegibility: true }}
+          });
+          PetriView.graph.addCell(newLink);
+				}
+      }
+    }
+
+    PetriView.graph.getCells().forEach((cell) => {
+
+    })
+    
+    // Check if auto-layout should apply (note that the method is called recursive, so != 0 is crucial)
+    if ((placePos.size <= 2 && placePos.size != 0) || (transPos.size <= 2 && transPos.size != 0)) {
+      joint.layout.DirectedGraph.layout(PetriView.graph, { dagre: dagre, graphlib: graphlib, setVertices: true, marginX: 20, marginY: 30 });
+    }
+  }
+
   private static importJSON() {
     PetriView.paper.translate(0, 0);
     PetriView.paper.scale(1, 1, 0, 0);
@@ -1536,21 +1610,34 @@ export class PetriView extends DOMWidgetView {
     PetriView.eventAttrs = [];
     PetriView.updateAttrsFrontend("caseAttrsList");
 
-    document.getElementById("uploadPopup")!.style.display = "none";
     var files = (<HTMLInputElement> document.getElementById("fileInput")).files!;
     if (files.length <= 0) {
       return false;
     }
 
+    let fileType = files[0]["name"].split(".")[1];
     var reader = new FileReader();
     reader.onload = function(e: any) { 
-      var jsonstring = JSON.parse(e.target.result);
-      PetriView.caseAttrs = jsonstring["caseAttributes"]? jsonstring["caseAttributes"]: [];
-      PetriView.updateAttrsFrontend("caseAttrsList");
+      if (fileType == "pnml") {
+        PetriView.graph.clear();
+        PetriView.caseAttrs = [];
+        let parser = new DOMParser();
+        var xmlDoc = parser.parseFromString(e.target.result, "text/xml");
+        let xmlPnml = xmlDoc.getElementsByTagName("pnml")[0];
 
-      delete jsonstring["caseAttributes"];
-      PetriView.graph.fromJSON(jsonstring);
-      PetriView.backupTokens = PetriView.getTokenlist(PetriView.graph.getCells());
+        PetriView.parsePNML(xmlPnml);
+        PetriView.backupTokens = PetriView.getTokenlist(PetriView.graph.getCells());
+        PetriView.updateAttrsFrontend("caseAttrsList");
+      }
+      else {
+        var jsonstring = JSON.parse(e.target.result);
+        PetriView.caseAttrs = jsonstring["caseAttributes"]? jsonstring["caseAttributes"]: [];
+        PetriView.updateAttrsFrontend("caseAttrsList");
+
+        delete jsonstring["caseAttributes"];
+        PetriView.graph.fromJSON(jsonstring);
+        PetriView.backupTokens = PetriView.getTokenlist(PetriView.graph.getCells());
+      }
 
       PetriView.graph.getCells().forEach(function(c) {
         if (c.attributes.type == "customTransition") {
@@ -1563,20 +1650,118 @@ export class PetriView extends DOMWidgetView {
         }
       });
       PetriView.updateAttrsFrontend("eventAttrsList");
-
+      document.getElementById("uploadPopup")!.style.display = "none";
       var fileName = files[0]["name"].split(".")[0]; 
-      localStorage.setItem(fileName, e.target.result);
       
       // Check for links existing with the same fileName and overwrite them
       if ($("a").filter(function() { return $(this).text() == fileName}).length == 0) {
         var newLink = document.createElement("a");
         newLink.textContent = fileName;
-        newLink.addEventListener("click", (e:Event) => PetriView.unJSONify(fileName));
+        if (fileType == "pnml") {
+          localStorage.setItem(fileName, JSON.stringify(PetriView.graph));
+          newLink.addEventListener("click", (e:Event) => PetriView.unPNMLify(fileName));
+        }
+        else {
+          localStorage.setItem(fileName, e.target.result);
+          newLink.addEventListener("click", (e:Event) => PetriView.unJSONify(fileName));
+        }
         document.getElementById("dropdown-content")!.appendChild(newLink);
       }
     }
     
     reader.readAsText(files.item(0)!);
+  }
+
+  private downloadPNML() {
+    var pnmlString = '<?xml version="1.0" encoding="ISO-8859-1"?>\n\
+                      <pnml>\
+                        <net id="net" type="https://www.pnml.org">';
+    PetriView.caseAttrs.forEach((caseAttr) => { pnmlString += ` <caseattr label='${caseAttr.replace("<", "&lt;").replace(">", "&gt;")}'/>` });
+    pnmlString += '<name>\
+                     <text>PetriNet</text>\
+                   </name>\
+                   <page id="Page0">\
+                     <name>\
+                       <text/>\
+                     </name>';
+    PetriView.graph.getCells().forEach(function(cell: any) {
+      if (cell.attributes.type == "pn.Place") {
+        var id = cell.attributes.id;
+        var name = cell.attributes.attrs[".label"]["text"];
+        var tokens = cell.attributes.tokens;
+        var width = cell.attributes.size["width"];
+        var height = cell.attributes.size["height"];
+        var x = cell.attributes.position["x"]/10;
+        var y = cell.attributes.position["y"]/10;
+        pnmlString += `<place id="${id}">\
+                        <name>\
+                          <text>${name}</text>\
+                        </name>\
+                        <toolspecific tool="ipypetrinet"/>\
+                        <graphics>\
+                          <position x="${x}" y="${y}"/>\
+                          <dimension x="${width}" y="${height}"/>\
+                        </graphics>\
+                        <initialMarking>\
+                          <text>${tokens}</text>\
+                        </initialMarking>\
+                      </place>`;
+      } else if (cell.attributes.type == "customTransition") {
+        var id = cell.id;
+        var name = cell.attributes.attrs!["label"]!["text"];
+        var width = cell.attributes.size["width"];
+        var height = cell.attributes.size["height"];
+        var x = cell.attributes.position["x"]/10;
+        var y = cell.attributes.position["y"]/10;
+        var exectime = cell.attributes.exectime;
+        var eventattrs = cell.attributes.eventAttrs;
+        var conditions: String[] = [];
+        cell.attributes.ports.items.forEach(function(item: any) {
+          conditions.push(item["attrs"]["portLabel"]["text"].replace("<", "&lt;").replace(">", "&gt;"));
+        });
+        pnmlString += `<transition id="${id}">\
+                        <name>\
+                          <text>${name}</text>\
+                        </name>\
+                        <toolspecific tool="ipypetrinet" exectime="${exectime}">`
+        conditions.forEach((cond) => { pnmlString += ` <condition label='${cond}'/>` });
+        eventattrs.forEach((eventAttr: any) => { pnmlString += ` <eventattr label='${eventAttr.replace("<", "&lt;").replace(">", "&gt;")}'/>` })
+        pnmlString += `</toolspecific><graphics>\
+                        <position x="${x}" y="${y}"/>\
+                        <dimension x="${width}" y="${height}"/>\
+                        <fill color="#9586fd"/>\
+                      </graphics>\
+                      </transition>`;
+      }
+    });
+
+    PetriView.graph.getLinks().forEach(function(link: any) {
+        var id = link.attributes.id;
+        var prob = link.attributes.labels[0]["attrs"]["text"]["text"];
+        var source = link.attributes.source.id;
+        var target = link.attributes.target.id;
+        pnmlString += `<arc id="${id}" source="${source}" target="${target}">\
+                        <name>\
+                          <text>${prob}</text>\
+                        </name>\
+                        <toolspecific tool="ipypetrinet"/>\
+                        <arctype>\
+                          <text>normal</text>\
+                        </arctype>\
+                      </arc>`;
+    });
+
+    pnmlString += `</page><finalmarkings><marking></marking></finalmarkings></net></pnml>`;
+    let blob = new Blob([pnmlString], {type: 'data:.pnml;charset=utf-8'});
+    let url = URL.createObjectURL(blob);
+
+    let a = document.createElement("a");
+    a.setAttribute('download', 'PetriNet.pnml');
+    a.setAttribute('href', url);
+    a.setAttribute('target', '_blank');
+    a.click();
+
+    document.getElementById("DownloadPopup")!.style.display = "none";
   }
 
   private downloadJSON() {
@@ -1610,6 +1795,18 @@ export class PetriView extends DOMWidgetView {
       a.setAttribute('target', '_blank');
       a.click();
     }
+    document.getElementById("DownloadPopup")!.style.display = "none";
+  }
+
+  private static unPNMLify(fileName: string) {
+    PetriView.graph.clear();
+    const pnmlString = localStorage.getItem(fileName)!;
+    PetriView.graph.fromJSON(JSON.parse(pnmlString));
+
+    // let parser = new DOMParser();
+    // var xmlDoc = parser.parseFromString(pnmlString, "text/xml");
+    // let xmlPnml = xmlDoc.getElementsByTagName("pnml")[0];
+    // PetriView.parsePNML(xmlPnml);
   }
 
   private static unJSONify(fileName: string) {
@@ -1682,8 +1879,14 @@ export class PetriView extends DOMWidgetView {
 
     if (checked=="staticAttr") {
       var staticVal = $("#staticVal").val();
-      (staticVal == "")? staticVal="10": staticVal;
-      var str = `${attr}: ${staticVal}`;
+      var p = $("#staticProbs").val();
+      (staticVal == "")? staticVal=[]: [staticVal];
+      if (p == "") {
+        var str = `${attr}: np.random.choice([${staticVal}])`;
+      } else {
+        var str = `${attr}: np.random.choice([${staticVal}], p=[${p}])`;
+      }
+      
     } else if (checked=="normalDist") {
       var mue = $("#mue").val();
       var sigma = $("#sigma").val();
@@ -1722,11 +1925,12 @@ export class PetriView extends DOMWidgetView {
   }
 
   private toggleFields(id: String) {
-    $('#staticVal, #mue, #sigma, #n, #p, #k, #theta, #beta').css("display", "none");
+    $('#staticVal, #staticProbs, #mue, #sigma, #n, #p, #k, #theta, #beta').css("display", "none");
     this.enableAttributeButtons();
 
     if (id == "staticAttr") {
       $("#staticVal").css("display", "flex");
+      $("#staticProbs").css("display", "flex");
     } else if (id == "normalDist") {
       $("#mue").css("display", "flex");
       $("#sigma").css("display", "flex");
@@ -1812,6 +2016,7 @@ export class PetriView extends DOMWidgetView {
         });
       }
     });
+    PetriView.graph.set('cellNamespace', joint.shapes);
   }
 
   private static resetDistForms() {
@@ -1819,8 +2024,8 @@ export class PetriView extends DOMWidgetView {
     (<HTMLInputElement> document.getElementById("addEventAttributes")).disabled = true;
     $("#attrName").prop("value", "");
     $("input[name=dist]").prop("checked", false);
-    $("#staticVal, #mue, #sigma, #n, #p, #k, #theta, #beta").css("display", "none");
-    $("#staticVal, #mue, #sigma, #n, #p, #k, #theta, #beta").prop("value", "");
+    $("#staticVal, #staticProbs, #mue, #sigma, #n, #p, #k, #theta, #beta").css("display", "none");
+    $("#staticVal, #staticProbs, #mue, #sigma, #n, #p, #k, #theta, #beta").prop("value", "");
   }
 
   private static showTab(id: string) {
@@ -1874,14 +2079,13 @@ export class PetriView extends DOMWidgetView {
   }
 
   private static selectTrans(div: any) {
-    if (div.style.backgroundColor == "rgb(220, 220, 220)") {
-      div.style.backgroundColor = "white";
-      div.className = "transListEl";
-    } else {
-      $(".transListEl").css("backgroundColor", "white");
-      div.style.backgroundColor = "#DCDCDC";
-      div.className = "transListEl active";
-    }
+    var activeElements = Array.from(document.getElementsByClassName("transListEl active"));
+    activeElements.forEach((el: any) => {
+      el.style.backgroundColor = "white";
+      el.className = "transListEl";
+    });    
+    div.style.backgroundColor = "#DCDCDC";
+    div.className = "transListEl active";
 
     // check if button should be enabled
     var checkTrans = document.getElementsByClassName("transListEl active").length > 0;

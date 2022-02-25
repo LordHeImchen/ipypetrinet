@@ -5,6 +5,7 @@
 # Distributed under the terms of the Modified BSD License.
 
 import time
+import random
 import datetime
 import numpy as np
 
@@ -55,7 +56,6 @@ class PetriWidget(DOMWidget):
             
         return transitions, places
 
-
     def get_places_by_name(self, net, place_name):
         """ Gets place of pm4py-petrinet by name """
 
@@ -63,7 +63,6 @@ class PetriWidget(DOMWidget):
             if p.name == place_name:
                 return p
         return None
-
 
     def get_init_token(self, net):
         """ Obtains the inital tokens of a pm4py-petrinet """
@@ -74,7 +73,6 @@ class PetriWidget(DOMWidget):
                 tokenplaces.append((p, p.properties[1]))
         return tokenplaces
         
-
     def add_links(self, net, links):
         """ Adds links to a pm4py-petrinet """
 
@@ -88,7 +86,6 @@ class PetriWidget(DOMWidget):
             
             petri_utils.add_arc_from_to(source, target, net, weight=weight)
             
-
     def build_smap(self, translist, links):
         """ Builds a stochastic map """
 
@@ -101,12 +98,10 @@ class PetriWidget(DOMWidget):
                     smap[trans] = link[2]
         return smap
 
-
     def get_unix_time(self, t=datetime.datetime(2021, 1, 1, 12, 0)):
-        """ Returns the seoconds since 01.01.1970 for a given datetime """
+        """ Returns the seconds since 01.01.1970 for a given datetime """
 
         return int(time.mktime(t.timetuple()))
-
 
     def pick_transition(self, et, smap):
         """ Picks a transition based on the stochastic map """
@@ -124,8 +119,7 @@ class PetriWidget(DOMWidget):
 
         chosen_t = list(np.random.choice(et, 1, p=probability_dist))[0]
         return chosen_t
-    
-    
+        
     def is_enabled(self, t, pn, m):
         """ Checks whether a transition can fire based on marking """
         
@@ -138,12 +132,8 @@ class PetriWidget(DOMWidget):
                     
         return True
 
-
-    def execute(self, t, pn, m):
+    def execute(self, t, m):
         """ Executes a transition if possible """
-
-        if not self.is_enabled(t, pn, m):
-            return None
 
         # Always subtracts exactly one token from source!
         m_out = copy(m)
@@ -156,7 +146,6 @@ class PetriWidget(DOMWidget):
             m_out[a.target] += 1
 
         return m_out
-    
     
     def enabled_transitions(self, pn, m):
         """ Return a set of enabled transitions (takes conditions into account) """
@@ -184,8 +173,7 @@ class PetriWidget(DOMWidget):
                 enabled.add(trans)
         
         return enabled
-    
-    
+        
     def apply_playout(self, net, initial_marking, case_attrs=[], no_traces=100, max_trace_length=100,
                       case_id_key='id', activity_key='activity:name', timestamp_key='time:timestamp',
                       final_marking=None, smap=None, init_timestamp=1609502400):
@@ -238,11 +226,15 @@ class PetriWidget(DOMWidget):
         caseAttr_names = []
         for caseattr in case_attrs:
             caseAttr_names.append(caseattr.split(": ")[0])
+
+        # dictionary containing the actual values of the event attrs
+        event_attrs = {}
         
         for i in range(no_traces):
             # reset all event and case attributes for every trace
             for eventattr in eventAttr_names:
                 exec('%s=%s' % (eventattr, None), globals())
+                event_attrs[eventattr] = None
             for caseattr in case_attrs:
                 exec(caseattr.replace(": ", "="), globals())
             
@@ -267,6 +259,11 @@ class PetriWidget(DOMWidget):
                     break
                     
                 if trans.label is not None:
+                    # only update the value of the e_attrs corresponding to the chosen transition
+                    for attr in trans.properties[2]:
+                        attr_name = attr.split("=")[0]
+                        event_attrs[attr_name] = eval(attr_name)
+
                     visible_transitions_visited.append(trans)
                     event = log_instance.Event()
                     event[activity_key] = trans.label.split(" [", 1)[0]
@@ -274,17 +271,16 @@ class PetriWidget(DOMWidget):
                     
                     for c in caseAttr_names:
                         event[c] = eval(c)
-                    for e in eventAttr_names:
-                        event[e] = eval(e)
+                    for e in event_attrs.keys():
+                        event[e] = event_attrs[e]
                     
                     trace.append(event)
                     curr_timestamp += int(trans.properties[1])
 
-                marking = self.execute(trans, net, marking)
+                marking = self.execute(trans, marking)
             log.append(trace)
 
         return log
-
 
     def createPetriNet(self, graph, name="PetriNet"):
         ''' 
@@ -312,7 +308,7 @@ class PetriWidget(DOMWidget):
             else:
                 links.append([c["source"], c["target"], c["prob"]])
         
-        trans, places = self.add_nodes(net, trans_infos, place_infos)
+        trans, _ = self.add_nodes(net, trans_infos, place_infos)
         self.add_links(net, links)
 
         initial_marking = Marking()
@@ -320,8 +316,7 @@ class PetriWidget(DOMWidget):
         for tp in tokenplaces:
             initial_marking[tp[0]] = tp[1]
 
-        return net, trans, places, links, initial_marking
-
+        return net, trans, links, initial_marking
 
     def drawPetriNet(self, graph, name="PetriNet"):
         ''' 
@@ -336,10 +331,9 @@ class PetriWidget(DOMWidget):
 
         '''
 
-        net, _, _, _, initial_marking = self.createPetriNet(graph, name=name)
+        net, _, _, initial_marking = self.createPetriNet(graph, name=name)
         gviz = pn_visualizer.apply(net, initial_marking)
         pn_visualizer.view(gviz)
-
 
     def generate_eventlog(self, graph, case_attrs=[], name="PetriNet", no_traces=100, max_trace_length=500, draw=False, init_timestamp=1609502400):
         ''' 
@@ -366,7 +360,7 @@ class PetriWidget(DOMWidget):
         
         '''
 
-        net, trans, _, links, initial_marking = self.createPetriNet(graph, name=name)
+        net, trans, links, initial_marking = self.createPetriNet(graph, name=name)
         smap = self.build_smap(trans, links)
 
         if draw:
@@ -376,4 +370,129 @@ class PetriWidget(DOMWidget):
         simulated_log = self.apply_playout(net, initial_marking, case_attrs=case_attrs, init_timestamp=init_timestamp,
                                            no_traces=no_traces, max_trace_length=max_trace_length, smap=smap)
         df = log_converter.apply(simulated_log, variant=log_converter.Variants.TO_DATA_FRAME)
+        return df
+
+    def strip_start(df, caseCol="case:id", prob=0.25, n=1):
+        ''' 
+        Delete the start event(s) of random traces
+
+        Parameters:
+        ------------------------------
+        df: pandas DataFrame (the event log)
+        caseCol: string      (the column holding the case ID)
+        prob: float          (the percentage of traces to modify)
+        n: int               (maximum number of events to delete per trace)
+            
+        '''
+    
+        cases = list(df[caseCol].unique())
+        modify = random.sample(cases, int(prob*len(cases)))
+        droprange = [j+1 for j in range(n)]
+        
+        for i in modify:
+            dropnum = np.random.choice(droprange)
+            index = df[df[caseCol] == str(i)].index[:dropnum]
+            df.drop(labels=index, axis=0, inplace=True)
+        
+        return df
+
+    def strip_end(df, caseCol="case:id", prob=0.25, n=1):
+        ''' 
+        Delete the end event(s) of random traces
+
+        Parameters:
+        ------------------------------
+        df: pandas DataFrame (the event log)
+        caseCol: string      (the column holding the case ID)
+        prob: float          (the percentage of traces to modify)
+        n: int               (maximum number of events to delete per trace)
+            
+        '''
+        
+        cases = list(df[caseCol].unique())
+        modify = random.sample(cases, int(prob*len(cases)))
+        droprange = [-j for j in range(n)]
+        
+        for i in modify:
+            dropnum = np.random.choice(droprange)
+            index = df[df[caseCol] == str(i)].index[dropnum:]
+            df.drop(labels=index, axis=0, inplace=True)
+        
+        return df
+
+    def addDoubles(df, caseCol="case:id", prob=0.25):
+        ''' 
+        Add already occuring events once again
+
+        Parameters:
+        ------------------------------
+        df: pandas DataFrame (the event log)
+        caseCol: string      (the column holding the case ID)
+        prob: float          (the percentage of traces to modify)
+            
+        '''
+        
+        cases = list(df[caseCol].unique())
+        modify = random.sample(cases, int(prob*len(cases)))
+        
+        for i in modify:
+            trace = df[df[caseCol] == str(i)].index
+            if len(trace[1:]) > 1:
+                index = np.random.choice(trace[1:])
+                df.loc[index+0.5] = df.iloc[index, :]
+                df.sort_index(inplace=True)
+                df.reset_index(drop=True, inplace=True)
+
+                # adjusting time for all following events and traces
+                timedelta = df.loc[index]["time:timestamp"] - df.loc[index-1]["time:timestamp"]
+                df.loc[index+1:, "time:timestamp"] = df.loc[index+1:, "time:timestamp"] + timedelta
+        
+        return df
+
+    def addSilence(df, caseCol="case:id", prob=0.25):
+        ''' 
+        Delete a random event (neither start nor end) from random traces
+
+        Parameters:
+        ------------------------------
+        df: pandas DataFrame (the event log)
+        caseCol: string      (the column holding the case ID)
+        prob: float          (the percentage of traces to modify)
+            
+        '''
+        
+        cases = list(df[caseCol].unique())
+        modify = random.sample(cases, int(prob*len(cases)))
+        
+        for i in modify:
+            trace = df[df[caseCol] == str(i)].index
+            if len(trace) > 2:
+                index = np.random.choice(trace[1:-1])
+                df.drop(labels=index, axis=0, inplace=True)
+                df.reset_index(drop=True, inplace=True)
+                
+        return df
+
+    def switchTimestamps(df, caseCol="case:id", prob=0.25):
+        ''' 
+        Randomly switch timestamps of two activities of random traces
+
+        Parameters:
+        ------------------------------
+        df: pandas DataFrame (the event log)
+        caseCol: string      (the column holding the case ID)
+        prob: float          (the percentage of traces to modify)
+            
+        '''
+            
+        cases = list(df[caseCol].unique())
+        modify = random.sample(cases, int(prob*len(cases)))
+        
+        for i in modify:
+            trace = df[df[caseCol] == str(i)].index
+            if len(trace) >= 2:
+                i1, i2 = np.random.choice(trace, size=2, replace=False)
+                a, b = df.iloc[i1, 1], df.iloc[i2, 1]
+                df.iloc[i1, 1], df.iloc[i2, 1] = b, a
+                    
         return df
