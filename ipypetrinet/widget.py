@@ -8,7 +8,9 @@ import time
 import random
 import datetime
 import numpy as np
+import pandas as pd
 
+from datetime import timedelta
 from ipywidgets import DOMWidget, register
 from traitlets import Unicode, List
 from ._frontend import module_name, module_version
@@ -166,17 +168,19 @@ class PetriWidget(DOMWidget):
             
             # Add transitions only if they meet their conditions (or conditions are None)
             if trans.properties[0]:
+                cond_results = []
                 for cond in trans.properties[0]:
-                    if eval(cond):
-                        enabled.add(trans)
+                    cond_results.append(eval(cond))
+                if all(cond_results):
+                    enabled.add(trans)
             else:
                 enabled.add(trans)
         
         return enabled
         
-    def apply_playout(self, net, initial_marking, case_attrs=[], no_traces=100, max_trace_length=100,
+    def apply_playout(self, net, initial_marking, case_attrs=[], no_traces=100, max_trace_length=500,
                       case_id_key='id', activity_key='activity:name', timestamp_key='time:timestamp',
-                      final_marking=None, smap=None, init_timestamp=1609502400):
+                      final_marking=None, smap=None, init_timestamp=1609502400, worktime=None, datafunc=None):
         
         """
         Do the playout of a Petrinet generating a log
@@ -205,6 +209,8 @@ class PetriWidget(DOMWidget):
             Stochastic map
         init_timestamp
             Timestamp in seconds to start at
+        datafunc
+            Method to generate dictionary of dictionaries
         """
         
         # infer the final marking from the net
@@ -237,13 +243,22 @@ class PetriWidget(DOMWidget):
                 event_attrs[eventattr] = None
             for caseattr in case_attrs:
                 exec(caseattr.replace(": ", "="), globals())
+
+            datadicts = None
+            if datafunc:
+                datadicts = datafunc()
             
             trace = log_instance.Trace()
             trace.attributes[case_id_key] = str(i)
             visible_transitions_visited = []
             marking = copy(initial_marking)
 
-            while len(visible_transitions_visited) < max_trace_length:                
+            while len(visible_transitions_visited) < max_trace_length:
+                # resets event_attr so it only is set for the respective activity
+                # for eventattr in eventAttr_names:
+                #     exec('%s=%s' % (eventattr, None), globals())
+                #     event_attrs[eventattr] = None
+
                 all_enabled_trans = self.enabled_transitions(net, marking)
                 
                 # supports nets with possible deadlocks
@@ -266,16 +281,52 @@ class PetriWidget(DOMWidget):
 
                     visible_transitions_visited.append(trans)
                     event = log_instance.Event()
+
+                    # add duration of activity to datetime and make sure its in usual working times
+                    date = datetime.datetime.fromtimestamp(curr_timestamp)
+                    if worktime:
+                        if date.hour >= worktime[1]:
+                            diff = date.hour - worktime[1]
+                            date = date.replace(hour=worktime[0])
+                            date += timedelta(days=1, hours=diff)
+                        if date.weekday() >= 5:
+                            date += timedelta(days=7-date.weekday())
+
+                        # update unix_time according to the possibly executed modifications
+                        curr_timestamp = self.get_unix_time(date)
+
                     event[activity_key] = trans.label.split(" [", 1)[0]
-                    event[timestamp_key] = datetime.datetime.fromtimestamp(curr_timestamp)
+                    event[timestamp_key] = date
                     
-                    for c in caseAttr_names:
-                        event[c] = eval(c)
+                    # add additional data attributes coming from custom function, event or case-attributes
+                    if datadicts:
+                        for dictname, dictvalue in datadicts.items():
+                            if type(dictvalue) is dict:
+                                if event[activity_key] in dictvalue.keys():
+                                    actualValue = dictvalue[event[activity_key]]
+                                    if np.issubclass_(type(actualValue), str):
+                                        exec("%s='%s'" % (dictname, actualValue), globals())
+                                    else:
+                                        exec("%s=%s" % (dictname, actualValue), globals())
+                                    event[dictname] = actualValue
+                                else:
+                                    event[dictname] = None
+                            else:
+                                if np.issubclass_(type(dictvalue), str):
+                                    exec("%s='%s'" % (dictname, dictvalue), globals())
+                                else:
+                                    exec("%s=%s" % (dictname, dictvalue), globals())
+                                event[dictname] = dictvalue
+
                     for e in event_attrs.keys():
                         event[e] = event_attrs[e]
+                    for c in caseAttr_names:
+                        event[c] = eval(c)
                     
                     trace.append(event)
-                    curr_timestamp += int(trans.properties[1])
+                    meanTime = int(trans.properties[1])
+                    lower, upper = int(meanTime*0.9), int(meanTime*1.1)+1
+                    curr_timestamp += random.randrange(lower, upper)
 
                 marking = self.execute(trans, marking)
             log.append(trace)
@@ -335,7 +386,8 @@ class PetriWidget(DOMWidget):
         gviz = pn_visualizer.apply(net, initial_marking)
         pn_visualizer.view(gviz)
 
-    def generate_eventlog(self, graph, case_attrs=[], name="PetriNet", no_traces=100, max_trace_length=500, draw=False, init_timestamp=1609502400):
+    def generate_eventlog(self, graph, case_attrs=[], name="PetriNet", no_traces=100, max_trace_length=500, draw=False, init_timestamp=1609502400, 
+                          worktime=None, datafunc=None):
         ''' 
         Simulate an event log as pandas dataframe containing event- and case-attributes
 
@@ -357,7 +409,10 @@ class PetriWidget(DOMWidget):
             Timestamp to start the first event at in seconds.
             Use PetriWidget.get_unix_time() to reveive the correct number for a certain datetime.
             default = 1609502400 (= 01.01.2021 12:00)
-        
+        datafunc
+            Method to generate dictonary of dictionaries for data attributes.
+            This method will be executed once for every case! The result must conform to the following form:
+            {data_attribute1: {activity_name1: respective_value1, activity_name2: respective_value2...}, ...}
         '''
 
         net, trans, links, initial_marking = self.createPetriNet(graph, name=name)
@@ -367,12 +422,12 @@ class PetriWidget(DOMWidget):
             gviz = pn_visualizer.apply(net, initial_marking)
             pn_visualizer.view(gviz)
         
-        simulated_log = self.apply_playout(net, initial_marking, case_attrs=case_attrs, init_timestamp=init_timestamp,
-                                           no_traces=no_traces, max_trace_length=max_trace_length, smap=smap)
+        simulated_log = self.apply_playout(net, initial_marking, case_attrs=case_attrs, init_timestamp=init_timestamp, no_traces=no_traces, 
+                                           max_trace_length=max_trace_length, smap=smap, worktime=worktime, datafunc=datafunc)
         df = log_converter.apply(simulated_log, variant=log_converter.Variants.TO_DATA_FRAME)
         return df
 
-    def strip_start(df, caseCol="case:id", prob=0.25, n=1):
+    def strip_start(self, df, caseCol="case:id", prob=0.25, n=1):
         ''' 
         Delete the start event(s) of random traces
 
@@ -384,7 +439,8 @@ class PetriWidget(DOMWidget):
         n: int               (maximum number of events to delete per trace)
             
         '''
-    
+
+        assert n!=0, "Please make sure to select n bigger than 0."
         cases = list(df[caseCol].unique())
         modify = random.sample(cases, int(prob*len(cases)))
         droprange = [j+1 for j in range(n)]
@@ -396,7 +452,7 @@ class PetriWidget(DOMWidget):
         
         return df
 
-    def strip_end(df, caseCol="case:id", prob=0.25, n=1):
+    def strip_end(self, df, caseCol="case:id", prob=0.25, n=1):
         ''' 
         Delete the end event(s) of random traces
 
@@ -409,9 +465,10 @@ class PetriWidget(DOMWidget):
             
         '''
         
+        assert n!=0, "Please make sure to choose n bigger than 0."
         cases = list(df[caseCol].unique())
         modify = random.sample(cases, int(prob*len(cases)))
-        droprange = [-j for j in range(n)]
+        droprange = [-j for j in range(n, n+1)]
         
         for i in modify:
             dropnum = np.random.choice(droprange)
@@ -420,7 +477,7 @@ class PetriWidget(DOMWidget):
         
         return df
 
-    def addDoubles(df, caseCol="case:id", prob=0.25):
+    def addDoubles(self, df, caseCol="case:id", prob=0.25):
         ''' 
         Add already occuring events once again
 
@@ -429,27 +486,27 @@ class PetriWidget(DOMWidget):
         df: pandas DataFrame (the event log)
         caseCol: string      (the column holding the case ID)
         prob: float          (the percentage of traces to modify)
-            
+
         '''
-        
+
         cases = list(df[caseCol].unique())
         modify = random.sample(cases, int(prob*len(cases)))
-        
+
         for i in modify:
             trace = df[df[caseCol] == str(i)].index
             if len(trace[1:]) > 1:
                 index = np.random.choice(trace[1:])
-                df.loc[index+0.5] = df.iloc[index, :]
+                df.loc[index+0.5] = df.loc[index, :]
                 df.sort_index(inplace=True)
-                df.reset_index(drop=True, inplace=True)
 
                 # adjusting time for all following events and traces
                 timedelta = df.loc[index]["time:timestamp"] - df.loc[index-1]["time:timestamp"]
                 df.loc[index+1:, "time:timestamp"] = df.loc[index+1:, "time:timestamp"] + timedelta
-        
+                df.reset_index(drop=True, inplace=True)
+
         return df
 
-    def addSilence(df, caseCol="case:id", prob=0.25):
+    def addSilence(self, df, caseCol="case:id", prob=0.25):
         ''' 
         Delete a random event (neither start nor end) from random traces
 
@@ -473,7 +530,7 @@ class PetriWidget(DOMWidget):
                 
         return df
 
-    def switchTimestamps(df, caseCol="case:id", prob=0.25):
+    def switchTimestamps(self, df, caseCol="case:id", prob=0.25):
         ''' 
         Randomly switch timestamps of two activities of random traces
 

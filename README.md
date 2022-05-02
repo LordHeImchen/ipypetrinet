@@ -13,7 +13,7 @@ You can install the package using `pip`:
 pip install ipypetrinet
 ```
 
-You may also need to install `pm4py`, `time`, `datetime`, `numpy`, and `copy`!
+You may also need to install `pm4py`, `time`, `datetime`, `numpy`, `pandas` and `copy`!
 
 If you are using Jupyter Notebook 5.2 or earlier, you may also need to enable
 the nbextension:
@@ -37,11 +37,11 @@ widget = PetriWidget()
 ![PetriWidget](./examples/PetriWidget.png)
 
 The Widget consists of 18 buttons and a resizable canvas. The functionality of each button is briefly described below. 
-After adding cells (places or transitions) to the canvas, you can connect them via a link by clicking and holding `alt-key` and then dragging the source-cell to the destination-cell. You can only add links between places and transitions. Note that you can give labels to places and transitions and probabilities to links. By double-clicking a cell or a link you can modify the label or probability respectively. Transitions can be enriched with custom conditions by clicking the attached add-button. Please also note that the canvas can be resized by dragging the lower-right corner up or down.
+After adding cells (places or transitions) to the canvas, you can connect them via a link by clicking and holding `alt-key` and then dragging the source-cell to the destination-cell. You can only add links between places and transitions. Note that you can assign labels to places and transitions and probabilities to links. By double-clicking a cell or a link you can modify the label or probability respectively. Transitions can be enriched with custom conditions by clicking the attached add-button. Please also note that the canvas can be resized by dragging the lower-right corner up or down.
 
 - `Graphs` will show a dropdown of two example graphs, which can be selected to play around with.
 - `Save Graph` will save the currently displayed graph in the `Graphs` dropdown. (CAUTION: It will only be stored temporarily in the local storage of the browser)
-- `Import Graph` allows you to import a JSON- or PNML-file as a graph to be displayed in the widget. This also restores available conditions, case- and event-attributes of the imported model. If the PNML-file does not provide proper position attributes, its approximate layout will be restored automatically.
+- `Import Graph` allows you to import a JSON- or PNML-file as a graph to be displayed in the widget. This also restores available conditions, case- and event-attributes of the imported model. If the PNML-file does not provide proper position-attributes, its approximate layout will be restored automatically.
 - `Download SVG` allows you to download the current graph as SVG.
 - `Download Graph` allows you to download the current graph as JSON- or PNML-file, which may be imported in another session to resume working. It also stores the corresponding conditions, case- and event-attributes.
 - `Zoom in` and `Zoom out` will enlarge or shrink the graph.
@@ -49,7 +49,7 @@ After adding cells (places or transitions) to the canvas, you can connect them v
 - `+ Transition` will add a new transition to the canvas. Please keep in mind that transitions always need a label. Within the transitions, conditions can be added using the attached add-button.
 - `+` will add a token to a previously selected place. You can select places or transitions by simply left-clicking them. Note that transitions cannot contain any tokens, while places may contain any positive number of tokens.
 - `-` will subtract a token of a previously selected place. Note that a place cannot contain a negative number of tokens.
-- `Layout` gives the user the possibility, to automatically generate a layout for the given graph. There are some options that can be customized in order to obtain the desired result.
+- `Layout` gives the user the possibility, to automatically generate a layout for the given graph. There are four parameters that can be customized in order to obtain the desired result.
 - `Clear` will delete the whole graph off the canvas. You can now start over with a fresh canvas. (CAUTION: at this point in time this cannot be revoked)
 - `Lock` will freeze the whole model, so cells can't be moved around or deleted anymore. However, you can still modify the properties of cells by double-clicking them.
 - `Play` will simulate the Petri net. Please mind that this simulation-mode doesn't take any conditions, case- and event-attributes or probabilities into account.
@@ -57,7 +57,12 @@ After adding cells (places or transitions) to the canvas, you can connect them v
 - `Reset` will reset the model to the state it had the last time a token was added or removed. Moreover, the graph is set back to its initial position and the zoom-level is reset.
 - `+ Attributes` will open a popup which allows you to add and delete both case- and event-attributes. A few options for the dynamic generation of variables are already supported (static list with probabilities, normal-, binomial-, gamma- and exponential-distribution). Please note, that you have to choose a certain transition to be extended by the respective event-attribute. 
 
-Furthermore, the PetriWidget comes with two attributes and a readily implemented simulation functionality. The attributes may be obtained by typing `widget.graph` and `widget.caseAttrs`. If you want to draw the net once again using gviz, you can run `widget.drawPetriNet(widget.graph)`. However, the main and most interesting function is `widget.generate_eventlog(graph=widget.graph, case_attrs=widget.caseAttrs)` which will simulate an event log as a pandas dataframe and compute the respective event-attributes and case-attributes dynamically. There are several optional parameters that can be modified. Additionally, some basic methods are included to subsequently contaminate the event log with noise like silent or double activities, missing start/end or randomly switching timestamps. 
+Beyond that, you can implement a custom Python method, defining data-attributes and pass them to the `generate_eventlog` function. The function should provide these attributes in the following form: 
+```bash
+datadict = {"resource": "Emma", "costs": {"A": 10, "B": 20}}
+```
+Here, the "resource" is handled as a case-attribute whereas the "costs" are defined as a event- or shared-attribute.
+Furthermore, the PetriWidget comes with two attributes and a readily implemented simulation functionality. The attributes may be obtained by typing `widget.graph` and `widget.caseAttrs`. If you want to draw the net once again using gviz, you can run `widget.drawPetriNet(widget.graph)`. However, the main and most interesting function is `widget.generate_eventlog(graph=widget.graph, case_attrs=widget.caseAttrs)` which will simulate an event log as a pandas DataFrame and compute the respective event-attributes and case-attributes dynamically. There are several optional parameters that can be modified. Additionally, some basic methods are included to subsequently contaminate the event log with noise like silent or double activities, missing start/end or randomly switching timestamps. 
 Hint: by typing `widget??` in a jupyter notebook, all implemented methods (including helper methods) can be inspected.
 
 

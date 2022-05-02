@@ -727,7 +727,7 @@ export class PetriView extends DOMWidgetView {
       },
 
       // Make paper draggable (mind the scaling)
-      'blank:pointermove element:pointermove': function(event, x, y) {
+      'blank:pointermove element:pointermove': function(event) {
         if (document.querySelector('#lock')!.textContent == " Lock") {
           if (PetriView.dragStartPosition) {
             var scale = PetriView.paper.scale();
@@ -1174,6 +1174,9 @@ export class PetriView extends DOMWidgetView {
               'stroke-width': '2',
               'stroke': '#4b4a67', // '#7a7e9b'
           },
+          '.connection-wrap': {
+            'fill': 'none'
+          },
         },
         // Hides the standard background-rect of the label
         defaultLabel: {
@@ -1244,6 +1247,9 @@ export class PetriView extends DOMWidgetView {
   }
 
   private addPlace() {
+    var x = PetriView.paper.paperToLocalPoint(0, 0).x + 20;
+    var y = PetriView.paper.paperToLocalPoint(0, 0).y + 20;
+
     PetriView.graph.addCell(new joint.shapes.pn.Place(
       {attrs: 
         {'.label': {'text': '', 'fill': '#7c68fc'},
@@ -1261,13 +1267,16 @@ export class PetriView extends DOMWidgetView {
           }
         },
       tokens: 0,
-      position: { x: 20, y: 25 }
+      position: { x: x, y: y }
     }));
     PetriView.backupTokens = PetriView.getTokenlist(PetriView.graph.getCells())
     this.updateGraph();
   }
 
   private addTrans() {
+    var x = PetriView.paper.paperToLocalPoint(0, 0).x + 90;
+    var y = PetriView.paper.paperToLocalPoint(0, 0).y + 35;
+
     if (PetriView.selectedCell) {
       if (PetriView.selectedCell.attributes.type == "pn.Place") {
         PetriView.selectedCell.attr({".root": { "stroke": "#7c68fc" }});
@@ -1275,10 +1284,7 @@ export class PetriView extends DOMWidgetView {
     }
     
     PetriView.selectedCell = new customTransition({
-      position: { 
-        x: 20,
-        y: 30
-      }
+      position: { x: x, y: y }
     });
     PetriView.graph.addCell(PetriView.selectedCell);
     document.getElementById("timeLabel")!.style.display = "flex";
@@ -1319,6 +1325,10 @@ export class PetriView extends DOMWidgetView {
             transitions.push(c);
         }
     }
+    // shuffle transitions to randomize which one is chosen first
+    transitions = transitions.map((value) => ({ value, sort: Math.random() }))
+                                 .sort((a, b) => a.sort - b.sort)
+                                 .map(({ value }) => value);
 
     function fireTransition(t: any, sec: any) {
 
@@ -1521,7 +1531,7 @@ export class PetriView extends DOMWidgetView {
 								let child3 = child2.childNodes[child3Id];
 								if (child3.tagName == "text") {
 									transLabel = child3.textContent;
-								}
+                }
 							}
 						}
             else if (child2.tagName == "toolspecific") {
@@ -1592,9 +1602,8 @@ export class PetriView extends DOMWidgetView {
 				}
       }
     }
-
     PetriView.graph.getCells().forEach((cell) => {
-
+      
     })
     
     // Check if auto-layout should apply (note that the method is called recursive, so != 0 is crucial)
@@ -1649,6 +1658,7 @@ export class PetriView extends DOMWidgetView {
           });
         }
       });
+
       PetriView.updateAttrsFrontend("eventAttrsList");
       document.getElementById("uploadPopup")!.style.display = "none";
       var fileName = files[0]["name"].split(".")[0]; 
@@ -1815,14 +1825,19 @@ export class PetriView extends DOMWidgetView {
   }
 
   private saveIMG() {
+    // make sure the link-tools are disabled for a clean SVG
+    $(".marker-arrowhead").css("display", "none");
+    $(".tool-remove").css("display", "none");
+    $(".tool-options").css("display", "none");
+    $(".marker-vertices").css("display", "none");
+
     let svg = (<Node> document.querySelector('svg'));
     if (svg == null) {
       console.log("There is no SVG to be saved.");
     } else {
       let data = (new XMLSerializer()).serializeToString(svg);
-      let blob = new Blob([data], {type: 'image/svg+xml;charset=utf-8'}); // to save as svg svg+xml (remember to change filename to .svg)
+      let blob = new Blob([data], {type: 'image/svg+xml;charset=utf-8'});
       let url = URL.createObjectURL(blob);
-
       let a = document.createElement('a');
 
       a.setAttribute('download', 'image.svg');
@@ -1830,6 +1845,11 @@ export class PetriView extends DOMWidgetView {
       a.setAttribute('target', '_blank');
       a.click();
     }
+
+    // reenable certain options again
+    $(".marker-arrowhead").css("display", "flex");
+    $(".tool-remove").css("display", "flex");
+    $(".marker-vertices").css("display", "flex");
   }
 
   private enableLabelButton(input: any) {
